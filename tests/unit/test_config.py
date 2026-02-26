@@ -17,7 +17,7 @@ def test_default_settings_instantiate():
     assert s.stitch_local_base_url == "http://localhost:8888"
     assert s.compare_pct_threshold == 0.25
     assert s.compare_max_events == 200
-    assert s.openai_model == "gpt-4.1"
+    assert s.openai_model == "gpt-5.2"
     assert s.llm_backend == "openai"
 
 

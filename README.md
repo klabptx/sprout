@@ -204,8 +204,8 @@ The OpenAI model is configurable via environment variable:
 
 ```bash
 export OPENAI_API_KEY=sk-...
-export OPENAI_MODEL=gpt-4.1          # default
-export OPENAI_MODEL=gpt-4.1-mini     # cheaper/faster
+export OPENAI_MODEL=gpt-5.2          # default
+export OPENAI_MODEL=gpt-5.2-mini     # cheaper/faster
 export OPENAI_MODEL=gpt-4o           # alternative
 ```
 
@@ -214,7 +214,7 @@ LLM-related env vars:
 | Variable | Default | Description |
 |---|---|---|
 | `OPENAI_API_KEY` | — | Required for `openai` backend |
-| `OPENAI_MODEL` | `gpt-4.1` | OpenAI model to use |
+| `OPENAI_MODEL` | `gpt-5.2` | OpenAI model to use |
 | `LOCAL_MODEL_DIR` / `LOCAL_MODEL_ID` | — | Local HuggingFace model path or ID |
 | `LOCAL_ADAPTER_DIR` | — | Optional PEFT adapter directory |
 | `LOCAL_BASE_MODEL` | — | Base model when using adapters |
@@ -225,7 +225,7 @@ LLM-related env vars:
 | `VLLM_BASE_URL` | — | vLLM server base URL |
 | `VLLM_MODEL` | — | vLLM model name |
 
-The report output includes the actual model used (e.g. `openai/gpt-4.1`),
+The report output includes the actual model used (e.g. `openai/gpt-5.2`),
 which is especially useful in `auto` mode to see which backend succeeded.
 
 ### Synthesize configuration

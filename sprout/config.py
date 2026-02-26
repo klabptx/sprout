@@ -62,7 +62,8 @@ class Settings(BaseSettings):
     exclude_event_codes: str = ""
     event_proto_path: str = "SystemLog.proto"
     sample_rate_hz: int = 5
-
+    compare_output_dir: str = "artifacts/compare_output"
+    compare_output_prefix: str = "compare"
     # ------------------------------------------------------------------ #
     # Confidence scoring (previously hardcoded in synthesize node)
     # ------------------------------------------------------------------ #
@@ -74,7 +75,7 @@ class Settings(BaseSettings):
     # LLM — OpenAI
     # ------------------------------------------------------------------ #
     openai_api_key: str | None = None
-    openai_model: str = "gpt-4.1"
+    openai_model: str = "gpt-5.2"
 
     # ------------------------------------------------------------------ #
     # LLM — Local HuggingFace / PEFT

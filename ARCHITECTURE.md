@@ -274,7 +274,7 @@ class GraphState(TypedDict):
 
     # ── LLM ────────────────────────────────────────────────────────────────
     llmBackend: str                    # "auto" | "local" | "vllm" | "lambda" | "openai"
-    llmModel: str                      # resolved model label, e.g. "openai/gpt-4.1"
+    llmModel: str                      # resolved model label, e.g. "openai/gpt-5.2"
     llmError: str | None
 ```
 
@@ -928,7 +928,7 @@ async def generate_llm_summary(
 | Local HuggingFace | `LOCAL_MODEL_DIR` or `LOCAL_MODEL_ID`, `LOCAL_ADAPTER_DIR` (PEFT) | — |
 | vLLM | `VLLM_BASE_URL`, `VLLM_MODEL` | — |
 | Lambda.ai | `LAMBDA_API_KEY`, `LAMBDA_MODEL` | `lambda_ai/llama3.1-8b-instruct` |
-| OpenAI | `OPENAI_API_KEY`, `OPENAI_MODEL` | `gpt-4.1` |
+| OpenAI | `OPENAI_API_KEY`, `OPENAI_MODEL` | `gpt-5.2` |
 
 Sampling parameters: `LOCAL_MAX_NEW_TOKENS` (default `256`), `LOCAL_TEMPERATURE` (default `0.2`)
 
@@ -1120,7 +1120,7 @@ class ReportPayload(TypedDict):
 | `COMPARE_ABS_THRESHOLD` | `0.0` | `compare_metrics()` | Minimum absolute deviation (AND condition) |
 | `COMPARE_MAX_EVENTS` | `20` | `analyze_event_records()` | Max events to process (top by priority) |
 | `OPENAI_API_KEY` | — | `llm_backends.py` | OpenAI authentication |
-| `OPENAI_MODEL` | `gpt-4.1` | `llm_backends.py` | OpenAI model ID |
+| `OPENAI_MODEL` | `gpt-5.2` | `llm_backends.py` | OpenAI model ID |
 | `LOCAL_MODEL_DIR` | — | `llm_backends.py` | Local HuggingFace model directory |
 | `LOCAL_MODEL_ID` | — | `llm_backends.py` | HuggingFace Hub model ID |
 | `LOCAL_ADAPTER_DIR` | — | `llm_backends.py` | PEFT/LoRA adapter directory |
