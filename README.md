@@ -35,7 +35,7 @@ An Event can belong to multiple Findings when its anomalous metrics span differe
 START → parse → analyze_event_records → prioritize → synthesize → END
 ```
 
-The `synthesize` node collects all findings (sorted by severity, optionally capped to top-N), builds a multi-finding LLM prompt, and generates a report. After the LLM produces its summary, a **structured summary** is fetched from Stitch and appended to the report. This structured summary is never seen or processed by the LLM — it is a direct, human-readable rendering of the application-level metrics from Stitch, grouped by application type (harvest, seeding, implement, etc.). The report includes the LLM model used. (Note: `augment` node temporarily bypassed while core functionality developed)
+The `synthesize` node collects all findings (sorted by severity, optionally capped to top-N), builds a multi-finding LLM prompt, and generates a report. After the first LLM call, a second LLM call produces a short **operational summary** sentence from task-specific metrics (e.g., "Harvest shows about 9.8 acres at ~2.7 mph with moisture around 21% and dry yield near 223 bu/acre."). 
 
 ## Quick start
 
@@ -216,17 +216,39 @@ the LLM. You can cap the number of findings included in the prompt:
 |---|---|---|
 | `synthesizeMaxFindings` | `-1` | Max findings in LLM prompt (`-1` = all) |
 
+### Operational summary
+
+After the findings summary, the synthesize node makes a second LLM call to
+produce a short natural-language sentence describing the run's key operational
+metrics. The prompt is built automatically from task-specific metrics detected
+in the Stitch data:
+
+| Task | Metrics included |
+|---|---|
+| **Plant** | Total population, singulation %, seed hybrids (names if 1-2, count if >2) |
+| **Harvest** | Acres, speed, moisture %, dry yield |
+| **Spray** | Acres, speed, volume per acre |
+
+Example output: *"Seeding shows strong singulation (~99.76%), for total
+population (32,800) of FS 6595X RIB and SV Rate."*
+
+If no task can be detected (e.g., only global metrics), the operational summary
+is skipped.
+
 ### Structured summary
 
-After the LLM generates its summary, the synthesize node fetches a structured
-summary directly from Stitch and appends it to the report. This block is **not**
-processed by the LLM — it is a verbatim rendering of the per-application metrics
-returned by the Stitch `/local/applications` and `/local/metrics/{app_id}`
-endpoints, mirroring the output style of the C++ `SummaryWriter*` classes.
+After both LLM calls, the synthesize node fetches a structured summary directly
+from Stitch and appends it to the report. This block is **not** processed by
+the LLM — it is a verbatim rendering of the per-application metrics returned
+by the Stitch `/local/applications` and `/local/metrics/{app_id}` endpoints,
+mirroring the output style of the C++ `SummaryWriter*` classes.
 
-The structured summary is available in the `ReportPayload` in two places:
+The report output is available in the `ReportPayload` in three fields:
 
-- `summary` — the LLM text followed by the structured summary block
+- `summary` — the full combined text (findings LLM + operational sentence +
+  structured summary)
+- `operational_summary` — the LLM-generated operational sentence alone (empty
+  string if no task detected or LLM failed)
 - `structured_summary` — the structured summary block alone (empty string if
   Stitch was unavailable)
 
