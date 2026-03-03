@@ -9,26 +9,24 @@ from typing import Any
 
 from sprout.config import get_settings
 from sprout.kg.utils import (
-    get_json,
-    load_record_metrics,
+    build_findings_by_app_type,
     build_metric_to_app_map,
     compare_metrics,
-    spatial_cell,
     compute_priority,
-    build_findings_by_app_type,
+    load_applications,
+    load_events,
+    load_record_metrics,
+    load_summary_metrics,
+    spatial_cell,
 )
 
 
-def _load_tailor_stream() -> dict:
-    url = get_settings().tailor_stream_url_resolved()
-    return get_json(url)
-
-
-def _stream_id_from_url(url: str) -> str | None:
-    parts = [p for p in url.split("/") if p]
-    if len(parts) >= 2 and parts[-2] == "streams":
-        return parts[-1]
-    return None
+def _select_default_app(apps: list[dict]) -> dict:
+    """Pick the default application (same logic as the parse node)."""
+    for app in apps:
+        if app.get("default"):
+            return app
+    return apps[0]
 
 
 def main() -> int:
@@ -36,37 +34,32 @@ def main() -> int:
     output_dir = s.compare_output_dir
     output_prefix = s.compare_output_prefix
     max_events = s.compare_max_events
-    tailor_url = s.tailor_stream_url
     excluded_codes: set[int] = set(s.excluded_event_codes())
 
-    stream = _load_tailor_stream()
-    current = stream.get("currentStream", {})
-    summary_rows = current.get("summaryData", [])
-    event_details = current.get("diagnosticEventDetails", [])
-    diagnostics = current.get("diagnostics", [])
-
-    if not summary_rows:
-        print("No summary data found.")
+    # Fetch data directly from Stitch
+    apps = load_applications()
+    if not apps:
+        print("No applications found in Stitch.")
         return 1
-    if not event_details:
+
+    app = _select_default_app(apps)
+    application_id = app["application_id"]
+
+    summary_metrics = load_summary_metrics(application_id)
+    if not summary_metrics:
+        print("No summary metrics found.")
+        return 1
+
+    raw_events = load_events()
+    if not raw_events:
         print("No diagnostic event details found.")
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
-            stream_id = _stream_id_from_url(tailor_url) if tailor_url else None
-            prefix = output_prefix
-            if stream_id:
-                prefix = f"{prefix}_{stream_id}"
-            path = os.path.join(output_dir, f"{prefix}.json")
-            summary_row = summary_rows[0]
-            summary_metrics = {
-                k: float(v)
-                for k, v in summary_row.items()
-                if k.startswith("metrics.") and isinstance(v, (int, float))
-            }
+            path = os.path.join(output_dir, f"{output_prefix}.json")
             with open(path, "w", encoding="utf-8") as handle:
                 json.dump(
                     {
-                        "applicationId": summary_row.get("applicationId"),
+                        "applicationId": application_id,
                         "summary": summary_metrics,
                         "events": [],
                         "findings": [],
@@ -77,34 +70,25 @@ def main() -> int:
                 )
         return 2
 
-    summary_row = summary_rows[0]
-    application_id = summary_row.get("applicationId")
-    summary_metrics = {
-        k: float(v)
-        for k, v in summary_row.items()
-        if k.startswith("metrics.") and isinstance(v, (int, float))
-    }
-
-    if not application_id:
-        print("No applicationId in summary row.")
-        return 1
-    if not summary_metrics:
-        print("No summary metrics found (metrics.*).")
-        return 1
-
-    # Pre-compute per-code counts from diagnostics aggregate row
-    code_counts: dict[str, int] = {}
-    if diagnostics:
-        codes_map = diagnostics[0].get("codes", {})
-        for code_str, info in codes_map.items():
-            code_counts[code_str] = info.get("count", 1) if isinstance(info, dict) else 1
+    # Normalize events into the shape expected by the comparison logic
+    event_details: list[dict] = []
+    code_counts: dict[str, int] = defaultdict(int)
+    for evt in raw_events:
+        code = evt.get("eventCode") or evt.get("event_code")
+        start = evt.get("start_record") or evt.get("startRecord")
+        if code is None or start is None:
+            continue
+        event_details.append({
+            "eventCode": int(code),
+            "start_record": int(start),
+            "end_record": evt.get("end_record") or evt.get("endRecord"),
+            "location": evt.get("location"),
+        })
+        code_counts[str(int(code))] += 1
 
     grouped: dict[str, list[dict]] = defaultdict(list)
     for event in event_details:
-        code = event.get("eventCode")
-        start_record = event.get("start_record")
-        if code is None or start_record is None:
-            continue
+        code = event["eventCode"]
         if int(code) in excluded_codes:
             continue
         grouped[str(code)].append(event)
@@ -142,11 +126,7 @@ def main() -> int:
         print("No anomalies found with current thresholds.")
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
-            stream_id = _stream_id_from_url(tailor_url) if tailor_url else None
-            prefix = output_prefix
-            if stream_id:
-                prefix = f"{prefix}_{stream_id}"
-            path = os.path.join(output_dir, f"{prefix}.json")
+            path = os.path.join(output_dir, f"{output_prefix}.json")
             with open(path, "w", encoding="utf-8") as handle:
                 json.dump(
                     {
@@ -164,13 +144,13 @@ def main() -> int:
     max_priority = max(results[0][0], 1e-9)
 
     # Build event dicts with normalized severity
-    events: list[dict[str, Any]] = []
+    events_out: list[dict[str, Any]] = []
     for idx, (priority, code, start_record, end_record, anomalies) in enumerate(results):
         severity = min(1.0, priority / max_priority)
         span = (
             max(0, int(end_record) - int(start_record)) if end_record is not None else None
         )
-        events.append({
+        events_out.append({
             "event_id": idx,
             "event_code": int(code),
             "eventCode": int(code),
@@ -182,7 +162,7 @@ def main() -> int:
             "anomalies": anomalies,
         })
 
-    for rank, evt in enumerate(events[:max_events], 1):
+    for rank, evt in enumerate(events_out[:max_events], 1):
         print("")
         span_note = f" len={evt['event_length']}" if evt["event_length"] is not None else ""
         print(f"#{rank}  Event code {evt['event_code']} @ record {evt['start_record']}"
@@ -201,7 +181,7 @@ def main() -> int:
         print(f"Warning: could not load application mapping: {exc}")
         metric_to_app = {}
 
-    findings = build_findings_by_app_type(events, metric_to_app, application_id)
+    findings = build_findings_by_app_type(events_out, metric_to_app, application_id)
 
     if findings:
         print("")
@@ -212,15 +192,11 @@ def main() -> int:
 
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
-        stream_id = _stream_id_from_url(tailor_url) if tailor_url else None
-        prefix = output_prefix
-        if stream_id:
-            prefix = f"{prefix}_{stream_id}"
-        path = os.path.join(output_dir, f"{prefix}.json")
+        path = os.path.join(output_dir, f"{output_prefix}.json")
         # Strip internal fields before serialization
         serializable_events = [
             {k: v for k, v in e.items() if k not in ("event_id",)}
-            for e in events
+            for e in events_out
         ]
         payload = {
             "applicationId": application_id,

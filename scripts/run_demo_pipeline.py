@@ -2,7 +2,6 @@
 """Run the LangGraph demo pipeline once and emit a JSON record to stdout.
 
 Expected env vars:
-    TAILOR_STREAM_URL   – URL served by the tailor shim for this .2020 file
     STITCH_LOCAL_BASE_URL – Stitch fs endpoint (default http://localhost:8888)
 
 Optional:
@@ -15,8 +14,8 @@ import asyncio
 import json
 import sys
 
-from sprout.config import get_settings
-from src.demo.graph import build_graph, default_state
+from sprout.graph import build_graph
+from sprout.state import default_state
 
 
 def _extract_output(result: dict) -> dict:
@@ -55,13 +54,6 @@ def _extract_output(result: dict) -> dict:
 
 
 def main() -> int:
-    s = get_settings()
-    try:
-        s.tailor_stream_url_resolved()
-    except Exception as exc:
-        print(f"Configuration error: {exc}", file=sys.stderr)
-        return 1
-
     graph = build_graph()
     result = asyncio.run(
         graph.ainvoke(

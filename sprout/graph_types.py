@@ -153,6 +153,8 @@ class ReportPayload(TypedDict):
     report_id: str
     run_id: str
     summary: str
+    structured_summary: str
+    operational_summary: str
     severity: float
     confidence: float
     finding_refs: list[str]

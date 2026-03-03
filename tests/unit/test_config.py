@@ -4,7 +4,6 @@ from __future__ import annotations
 import pytest
 
 from sprout.config import Settings, get_settings
-from sprout.exceptions import ConfigurationError
 
 
 # --------------------------------------------------------------------------- #
@@ -54,55 +53,6 @@ def test_zero_max_events_raises(monkeypatch):
     monkeypatch.setenv("COMPARE_MAX_EVENTS", "0")
     with pytest.raises(Exception):
         Settings()
-
-
-# --------------------------------------------------------------------------- #
-# tailor_stream_url_resolved()
-# --------------------------------------------------------------------------- #
-
-
-def test_explicit_stream_url_returned(monkeypatch):
-    monkeypatch.setenv("TAILOR_STREAM_URL", "http://example.com/stream/abc")
-    s = Settings()
-    assert s.tailor_stream_url_resolved() == "http://example.com/stream/abc"
-
-
-def test_composed_stream_url(monkeypatch):
-    monkeypatch.delenv("TAILOR_STREAM_URL", raising=False)
-    monkeypatch.setenv("TAILOR_BASE_URL", "http://tailor.local")
-    monkeypatch.setenv("TAILOR_ORG_CODE", "acme")
-    monkeypatch.setenv("TAILOR_STREAM_ID", "stream-001")
-    s = Settings()
-    assert s.tailor_stream_url_resolved() == "http://tailor.local/tailor/acme/streams/stream-001"
-
-
-def test_composed_url_strips_trailing_slash(monkeypatch):
-    monkeypatch.delenv("TAILOR_STREAM_URL", raising=False)
-    monkeypatch.setenv("TAILOR_BASE_URL", "http://tailor.local/")
-    monkeypatch.setenv("TAILOR_ORG_CODE", "acme")
-    monkeypatch.setenv("TAILOR_STREAM_ID", "stream-001")
-    s = Settings()
-    assert not s.tailor_stream_url_resolved().count("//tailor/")
-
-
-def test_missing_tailor_config_raises(monkeypatch):
-    monkeypatch.delenv("TAILOR_STREAM_URL", raising=False)
-    monkeypatch.delenv("TAILOR_BASE_URL", raising=False)
-    monkeypatch.delenv("TAILOR_ORG_CODE", raising=False)
-    monkeypatch.delenv("TAILOR_STREAM_ID", raising=False)
-    s = Settings()
-    with pytest.raises(ConfigurationError):
-        s.tailor_stream_url_resolved()
-
-
-def test_partial_tailor_config_raises(monkeypatch):
-    monkeypatch.delenv("TAILOR_STREAM_URL", raising=False)
-    monkeypatch.setenv("TAILOR_BASE_URL", "http://tailor.local")
-    monkeypatch.delenv("TAILOR_ORG_CODE", raising=False)
-    monkeypatch.delenv("TAILOR_STREAM_ID", raising=False)
-    s = Settings()
-    with pytest.raises(ConfigurationError):
-        s.tailor_stream_url_resolved()
 
 
 # --------------------------------------------------------------------------- #

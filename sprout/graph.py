@@ -25,7 +25,7 @@ __all__ = ["build_graph", "default_state"]
 # --------------------------------------------------------------------------- #
 
 DEMO_STAGE_INFO: dict[str, str] = {
-    "parse": "Fetches Tailor stream data and builds the Run node.",
+    "parse": "Fetches application data and events from Stitch; builds the Run node.",
     "analyze_event_records": "Compares record-level metrics against summary for diagnostic events; generates findings for anomalous records.",
     "prioritize": "Creates Priority nodes and ranks findings.",
     "augment": "Adds Augmentation + Recommendation nodes.",
@@ -72,8 +72,8 @@ def _build_demo_payload(stage: str, state: GraphState, result: dict) -> dict:
         data_preview = {
             "run_id": result.get("runId"),
             "sample_count": len(result.get("samples", [])),
-            "tailor_summary_count": len(result.get("tailorSummary", [])),
-            "tailor_diagnostic_count": len(result.get("tailorDiagnostics", [])),
+            "summary_count": len(result.get("summaryData", [])),
+            "diagnostic_count": len(result.get("diagnostics", [])),
         }
     elif stage == "analyze_event_records":
         event_node = next(

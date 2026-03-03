@@ -3,7 +3,7 @@
 
 This is a Python application that generates a knowledge graph model to ground, empower, and define Precision Planting's AI applications (including but not limited to aurora). It builds a small DAG that:
 
-- fetches Tailor stream data and Stitch application/metric definitions
+- fetches application data, summary metrics, and diagnostic events from Stitch
 - compares record-level metrics against summary averages for each diagnostic event
 - groups anomalous metrics into Findings by application type (one Finding per app type)
 - enriches findings with event code definitions from `SystemLog.proto` (title, description, recommendation)
@@ -18,13 +18,12 @@ The DAG produces a two-layer detection structure in the knowledge graph:
 - the event code (with title from `SystemLog.proto` when available), start/end record, record span
 - a severity score (normalized priority)
 - a priority score (based on metric co-occurrence, duration, event-code frequency, and spatial clustering)
-- a list of anomalous metrics with per-metric deviations from the Tailor summary average
+- a list of anomalous metrics with per-metric deviations from the summary average
 - a human-readable summary and a diagnosis prompt
-##### Event code info will eventually be exposed by tailor
 
 **Findings** aggregate anomalous metrics by application type. Each Finding carries:
 - the application id/type/name (fetched from Stitch `/local/applications`)
-- metric summaries with peak positive/negative deviations and Tailor averages
+- metric summaries with peak positive/negative deviations and averages
 - event code counts with titles, descriptions, and recommendations from `SystemLog.proto`
 - a diagnosis prompt listing anomalous metrics and enriched event code details
 
@@ -36,7 +35,7 @@ An Event can belong to multiple Findings when its anomalous metrics span differe
 START → parse → analyze_event_records → prioritize → synthesize → END
 ```
 
-The `synthesize` node collects all findings (sorted by severity, optionally capped to top-N), builds a multi-finding LLM prompt, and generates a report. The report includes the LLM model used. (Note: `augment` node temporarily bypassed while core functionality developed)
+The `synthesize` node collects all findings (sorted by severity, optionally capped to top-N), builds a multi-finding LLM prompt, and generates a report. After the first LLM call, a second LLM call produces a short **operational summary** sentence from task-specific metrics (e.g., "Harvest shows about 9.8 acres at ~2.7 mph with moisture around 21% and dry yield near 223 bu/acre."). 
 
 ## Quick start
 
@@ -49,7 +48,7 @@ pip install -e ".[dev,openai]"
 ### Run compare on a local .2020 file
 
 The quickest way to process a Stitch `fs` file end-to-end. The script starts
-Stitch, the Tailor shim, runs the comparison, and tears everything down:
+Stitch, runs the comparison, and tears everything down:
 
 ```bash
 STITCH_BIN=/path/to/stitch \
@@ -59,8 +58,7 @@ STITCH_DATA_DIR=/tmp/stitch \
 
 Results are written to `artifacts/compare_results/`.
 
-To process every `.2020` file in a directory (shim stays up, Stitch restarts
-per file):
+To process every `.2020` file in a directory (Stitch restarts per file):
 
 ```bash
 scripts/run_compare.sh /path/to/dir/
@@ -68,30 +66,16 @@ scripts/run_compare.sh /path/to/dir/
 
 ### Run the full KG demo
 
-Start Stitch in `fs` mode, then use the Tailor shim to expose a Tailor-shaped
-endpoint:
+Start Stitch in `fs` mode, then run the pipeline:
 
 ```bash
 # Terminal 1 – Stitch
 /path/to/stitch --port 8888 --data-dir /tmp/stitch fs --file /path/to/field.2020
 
-# Terminal 2 – Tailor shim
-export STITCH_LOCAL_BASE_URL=http://localhost:8888
-python scripts/tailor_shim.py
-
-# Terminal 3 – Demo
-export TAILOR_STREAM_URL=http://localhost:9000/tailor/dev/streams/field
+# Terminal 2 – Demo
 export STITCH_LOCAL_BASE_URL=http://localhost:8888
 export OPENAI_API_KEY=sk-...
 sprout --llm-backend openai
-```
-
-You can also set the stream URL from its parts:
-
-```bash
-export TAILOR_BASE_URL=http://localhost:9000
-export TAILOR_ORG_CODE=dev
-export TAILOR_STREAM_ID=field
 ```
 
 ### Batch demo pipeline
@@ -125,16 +109,14 @@ Environment variables for `scripts/run_demo_batch.sh`:
 | `STITCH_BIN` | `~/ptx/stitch/.build/arm64/stitch` | Path to Stitch binary |
 | `STITCH_PORT` | `8888` | Stitch listen port |
 | `STITCH_DATA_DIR` | `/tmp/stitch` | Stitch data directory |
-| `ORG_CODE` | `dev` | Tailor org code for stream URL |
-| `SHIM_PORT` | `9000` | Tailor shim listen port |
 | `LLM_BACKEND` | `openai` | LLM backend for synthesize |
 | `SEVERITY_THRESHOLD` | `0.25` | Minimum severity to include in report |
 
 The pipeline runner script (`scripts/run_demo_pipeline.py`) can also be invoked
-directly with `TAILOR_STREAM_URL` set:
+directly:
 
 ```bash
-export TAILOR_STREAM_URL=http://localhost:9000/tailor/dev/streams/field
+export STITCH_LOCAL_BASE_URL=http://localhost:8888
 export LLM_BACKEND=openai
 python scripts/run_demo_pipeline.py
 ```
@@ -146,7 +128,6 @@ Write compare results to JSON (one file per stream). Output contains `events`
 application type):
 
 ```bash
-export TAILOR_STREAM_URL=http://localhost:9000/tailor/dev/streams/field
 export STITCH_LOCAL_BASE_URL=http://localhost:8888
 export COMPARE_OUTPUT_DIR=artifacts/compare_results
 PYTHONPATH=. python scripts/compare_event_records.py
@@ -167,8 +148,6 @@ Environment variables for `scripts/run_compare.sh`:
 | `STITCH_BIN` | `~/ptx/stitch/.build/arm64/stitch` | Path to Stitch binary |
 | `STITCH_PORT` | `8888` | Stitch listen port |
 | `STITCH_DATA_DIR` | `/tmp/stitch` | Stitch data directory |
-| `ORG_CODE` | `dev` | Tailor org code for stream URL |
-| `SHIM_PORT` | `9000` | Tailor shim listen port |
 | `OUTPUT_DIR` | `artifacts/compare_results` | Where JSON results are written |
 
 Interactive explorer (Dash). Provides event scatter plot, findings-by-application-type
@@ -237,6 +216,64 @@ the LLM. You can cap the number of findings included in the prompt:
 |---|---|---|
 | `synthesizeMaxFindings` | `-1` | Max findings in LLM prompt (`-1` = all) |
 
+### Operational summary
+
+After the findings summary, the synthesize node makes a second LLM call to
+produce a short natural-language sentence describing the run's key operational
+metrics. The prompt is built automatically from task-specific metrics detected
+in the Stitch data:
+
+| Task | Metrics included |
+|---|---|
+| **Plant** | Total population, singulation %, seed hybrids (names if 1-2, count if >2) |
+| **Harvest** | Acres, speed, moisture %, dry yield |
+| **Spray** | Acres, speed, volume per acre |
+
+Example output: *"Seeding shows strong singulation (~99.76%), for total
+population (32,800) of FS 6595X RIB and SV Rate."*
+
+If no task can be detected (e.g., only global metrics), the operational summary
+is skipped.
+
+### Structured summary
+
+After both LLM calls, the synthesize node fetches a structured summary directly
+from Stitch and appends it to the report. This block is **not** processed by
+the LLM — it is a verbatim rendering of the per-application metrics returned
+by the Stitch `/local/applications` and `/local/metrics/{app_id}` endpoints,
+mirroring the output style of the C++ `SummaryWriter*` classes.
+
+The report output is available in the `ReportPayload` in three fields:
+
+- `summary` — the full combined text (findings LLM + operational sentence +
+  structured summary)
+- `operational_summary` — the LLM-generated operational sentence alone (empty
+  string if no task detected or LLM failed)
+- `structured_summary` — the structured summary block alone (empty string if
+  Stitch was unavailable)
+
+Example output appended to the report:
+
+```
+--- Structured Summary ---
+
+Harvest (Harvest Application)
+  Dry Yield bu/ac: 185.20
+  Grain Moisture %: 14.30
+  Wet Weight lbs/ac: 212.00
+  Acres: 150.00
+
+Seeding (Seed Application)
+  Population Avg: 32,450.00
+  Singulation %: 98.72
+  Skips %: 1.02
+
+--- End Structured Summary ---
+```
+
+If Stitch is unreachable when the synthesize node runs, the structured summary
+is silently omitted and the report contains only the LLM output.
+
 ### Event code definitions
 
 If `SystemLog.proto` is present at the repo root, event code definitions are
@@ -264,16 +301,16 @@ export EVENT_PROTO_PATH=/path/to/SystemLog.proto   # default: SystemLog.proto
 - `sprout/cli.py`: CLI entry point (`sprout` command). Prints the report and LLM model used.
 - `sprout/nodes/`: Individual pipeline node implementations (`parse`, `analyze`, `prioritize`, `augment`, `synthesize`).
 - `sprout/kg/utils.py`: Anomaly detection, finding-accumulation, and proto event-code parsing logic.
+- `sprout/kg/structured_summary.py`: Fetches per-application metrics from Stitch and formats them as human-readable text (appended to the report, not LLM-processed).
 - `scripts/compare_event_records.py`: Standalone script that runs record-level metric comparison and outputs JSON with `events` and `findings`.
-- `scripts/run_compare.sh`: Runs Stitch + shim + compare for a single `.2020` file or a directory of them.
+- `scripts/run_compare.sh`: Runs Stitch + compare for a single `.2020` file or a directory of them.
 - `scripts/run_demo_pipeline.py`: Runs the full LangGraph pipeline once and outputs a JSON record to stdout.
 - `scripts/run_demo_batch.sh`: Batch orchestrator that runs the pipeline for a directory of `.2020` files and collects results into a JSONL file.
 - `scripts/plot_compare_dash.py`: Dash interactive explorer for compare results.
-- `scripts/tailor_shim.py`: Tailor-shaped HTTP shim backed by Stitch `/local/*` APIs.
 
 ## Notes
 
-- Tailor data is used instead of the synthetic 5 Hz run.
+- All data is fetched directly from Stitch `/local/*` endpoints.
 - The segmentation and time-series components still exist, but are not wired into
   the main DAG flow yet.
 - Events carry per-record anomalous metric comparisons; Findings aggregate those

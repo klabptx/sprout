@@ -1,10 +1,16 @@
 """Synthesize node: produce a Report KG node from findings via LLM."""
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from sprout.config import get_settings
 from sprout.graph_types import NodeEnvelope, ReportPayload
+from sprout.kg.structured_summary import (
+    build_operational_prompt,
+    fetch_structured_summary,
+    format_structured_summary,
+)
 from sprout.state import GraphState, KG, new_id
 
 logger = logging.getLogger(__name__)
@@ -137,11 +143,37 @@ async def synthesize(state: GraphState) -> dict:
         logger.warning("Synthesize: LLM error (backend=%s): %s", backend, llm_error)
     logger.info("Synthesize: report produced via %s (confidence=%.2f)", llm_model, confidence)
 
+    # Fetch structured summary data from stitch (used for both display text and
+    # the operational LLM prompt).
+    try:
+        apps_data = await asyncio.to_thread(fetch_structured_summary)
+    except Exception as exc:
+        logger.warning("Synthesize: structured summary fetch failed: %s", exc)
+        apps_data = []
+
+    structured_text = format_structured_summary(apps_data)
+    operational_prompt = build_operational_prompt(apps_data)
+
+    # Second LLM call: generate a short operational sentence from key metrics.
+    operational_sentence = ""
+    if operational_prompt:
+        logger.info("Synthesize: invoking LLM for operational summary (backend=%s)", backend)
+        op_summary, op_error, _ = await generate_llm_summary(operational_prompt, backend)
+        if op_summary:
+            operational_sentence = op_summary
+        if op_error:
+            logger.warning("Synthesize: operational LLM error: %s", op_error)
+
+    llm_text = llm_summary or " ".join(report_lines)
+    combined = llm_text + "\n\n" + operational_sentence if operational_sentence else llm_text
+
     report_id = new_id("rpt")
     report_payload: ReportPayload = {
         "report_id": report_id,
         "run_id": state["runId"],
-        "summary": llm_summary or " ".join(report_lines),
+        "summary": combined,
+        "structured_summary": structured_text,
+        "operational_summary": operational_sentence,
         "severity": state["topSeverity"],
         "confidence": confidence,
         "finding_refs": state["findingIds"],
@@ -162,13 +194,13 @@ async def synthesize(state: GraphState) -> dict:
         finding_node["edges"] = list(finding_node.get("edges", [])) + [
             {"type": "FINDING_INFORMS_REPORT", "to": report_id}
         ]
-        kg_updates[f_id] = finding_node  # type: ignore[assignment]
+        kg_updates[f_id] = finding_node 
     for p_id in state["priorityIds"]:
         prio_node = dict(state["kg"][p_id])
         prio_node["edges"] = list(prio_node.get("edges", [])) + [
             {"type": "PRIORITY_INFORMS_REPORT", "to": report_id}
         ]
-        kg_updates[p_id] = prio_node  # type: ignore[assignment]
+        kg_updates[p_id] = prio_node 
 
     return {
         "reportId": report_id,
