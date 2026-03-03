@@ -23,9 +23,6 @@ from __future__ import annotations
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from sprout.exceptions import ConfigurationError
-
-
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -33,14 +30,6 @@ class Settings(BaseSettings):
         # Allow extra fields so unknown env vars don't crash startup.
         extra="ignore",
     )
-
-    # ------------------------------------------------------------------ #
-    # Tailor stream API
-    # ------------------------------------------------------------------ #
-    tailor_stream_url: str | None = None
-    tailor_base_url: str | None = None
-    tailor_org_code: str | None = None
-    tailor_stream_id: str | None = None
 
     # ------------------------------------------------------------------ #
     # Stitch file-system API
@@ -62,7 +51,7 @@ class Settings(BaseSettings):
     exclude_event_codes: str = ""
     event_proto_path: str = "SystemLog.proto"
     sample_rate_hz: int = 5
-    compare_output_dir: str = "artifacts/compare_output"
+    compare_output_dir: str = "artifacts/compare_results"
     compare_output_prefix: str = "compare"
     # ------------------------------------------------------------------ #
     # Confidence scoring (previously hardcoded in synthesize node)
@@ -121,25 +110,6 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------ #
     # Derived helpers
     # ------------------------------------------------------------------ #
-
-    def tailor_stream_url_resolved(self) -> str:
-        """Return the effective Tailor stream URL.
-
-        Prefers ``TAILOR_STREAM_URL`` if set; otherwise composes from
-        ``TAILOR_BASE_URL``, ``TAILOR_ORG_CODE``, and ``TAILOR_STREAM_ID``.
-
-        Raises:
-            ConfigurationError: If neither form is fully specified.
-        """
-        if self.tailor_stream_url:
-            return self.tailor_stream_url
-        if not all([self.tailor_base_url, self.tailor_org_code, self.tailor_stream_id]):
-            raise ConfigurationError(
-                "Set TAILOR_STREAM_URL, or set all three of "
-                "TAILOR_BASE_URL, TAILOR_ORG_CODE, and TAILOR_STREAM_ID."
-            )
-        base = (self.tailor_base_url or "").rstrip("/")
-        return f"{base}/tailor/{self.tailor_org_code}/streams/{self.tailor_stream_id}"
 
     def excluded_event_codes(self) -> list[int]:
         """Parse EXCLUDE_EVENT_CODES into a list of ints (supports ranges like 12000-13000)."""

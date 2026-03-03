@@ -1,4 +1,4 @@
-"""Analyze node: compare record-level metrics against Tailor summary averages."""
+"""Analyze node: compare record-level metrics against summary averages."""
 from __future__ import annotations
 
 import asyncio
@@ -27,9 +27,9 @@ async def analyze_event_records(state: GraphState) -> dict:
 
     Generates Event and Finding KG nodes for anomalous records.
     """
-    summaries = state.get("tailorSummary", [])
-    event_details = state.get("tailorEventDetails", [])
-    diagnostics = state.get("tailorDiagnostics", [])
+    summaries = state.get("summaryData", [])
+    event_details = state.get("eventDetails", [])
+    diagnostics = state.get("diagnostics", [])
 
     if not summaries or not event_details:
         logger.info("Analyze: no summary or event_details — skipping")

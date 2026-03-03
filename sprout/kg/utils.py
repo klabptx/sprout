@@ -171,6 +171,35 @@ def load_application_metric_keys(application_id: str) -> list[dict[str, str]]:
     ]
 
 
+def load_summary_metrics(application_id: str) -> dict[str, float]:
+    """Fetch summary-level averages for an application.
+
+    Calls ``GET /local/metrics/{app_id}`` (without a ``?record=`` param) and
+    extracts ``implement_average`` values into ``metrics.{key}: float`` format.
+    """
+    url = f"{_stitch_base()}/local/metrics/{application_id}"
+    payload = get_json(url)
+    return extract_metrics(payload)
+
+
+def load_events(limit: int = 200) -> list[dict]:
+    """Fetch diagnostic events from Stitch.
+
+    Calls ``GET /local/events?start=0&limit={limit}`` and returns the raw
+    event list.
+    """
+    url = f"{_stitch_base()}/local/events?start=0&limit={limit}"
+    payload = get_json(url)
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict):
+        for key in ("items", "events", "data"):
+            nested = payload.get(key)
+            if isinstance(nested, list):
+                return nested
+    return []
+
+
 def build_metric_to_app_map() -> dict[str, dict[str, str]]:
     apps = load_applications()
     mapping: dict[str, dict[str, str]] = {}
@@ -217,7 +246,7 @@ def compare_metrics(
         record_val = record[key]
         abs_delta = record_val - summary_val
         if summary_val == 0:
-            # Skip metrics with a zero Tailor average — percent deviation is
+            # Skip metrics with a zero summary average — percent deviation is
             # undefined and likely reflects a data/average calculation issue.
             continue
         pct_delta = abs_delta / abs(summary_val)
@@ -359,7 +388,7 @@ def build_findings_by_app_type(
                     "metric_name": m["name"],
                     "peak_pct_pos": m["peak_pos"],
                     "peak_pct_neg": m["peak_neg"],
-                    "tailor_average": m["avg"],
+                    "summary_average": m["avg"],
                     "event_count": m["event_count"],
                 }
             )

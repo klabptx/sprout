@@ -24,11 +24,9 @@ def merge_dict(
 class GraphState(TypedDict):
     samples: list[Sample]
     runId: str
-    tailorSummary: list[dict]
-    tailorDiagnostics: list[dict]
-    tailorEventDetails: list[dict]
-    tailorOverview: dict | None
-    tailorContext: list[dict]
+    summaryData: list[dict]
+    diagnostics: list[dict]
+    eventDetails: list[dict]
     kg: Annotated[KG, merge_dict]
     segmentIds: Annotated[list[str], concat]
     featureIds: Annotated[list[str], concat]
@@ -91,11 +89,9 @@ def default_state() -> GraphState:
     return {
         "samples": [],
         "runId": "",
-        "tailorSummary": [],
-        "tailorDiagnostics": [],
-        "tailorEventDetails": [],
-        "tailorOverview": None,
-        "tailorContext": [],
+        "summaryData": [],
+        "diagnostics": [],
+        "eventDetails": [],
         "kg": {},
         "segmentIds": [],
         "featureIds": [],

@@ -5,7 +5,7 @@ import argparse
 import asyncio
 import sys
 
-from sprout.exceptions import ConfigurationError, SproutError
+from sprout.exceptions import SproutError
 from sprout.graph import build_graph
 from sprout.logging_config import configure_logging
 from sprout.state import default_state
@@ -27,13 +27,6 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     configure_logging(verbose=args.verbose)
-
-    try:
-        from sprout.config import get_settings
-        get_settings().tailor_stream_url_resolved()
-    except ConfigurationError as exc:
-        print(f"Configuration error: {exc}", file=sys.stderr)
-        sys.exit(1)
 
     state_overrides: dict = {"demo": args.demo}
     if args.llm_backend:

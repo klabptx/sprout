@@ -1,13 +1,14 @@
-"""Parse node: fetch Tailor stream data and build the Run KG node."""
+"""Parse node: fetch application data and events from Stitch, build the Run KG node."""
 from __future__ import annotations
 
 import logging
-
-import requests
+from collections import defaultdict
+from typing import Any
 
 from sprout.config import get_settings
-from sprout.exceptions import TailorAPIError
+from sprout.exceptions import StitchAPIError
 from sprout.graph_types import NodeEnvelope, RunPayload, Sample
+from sprout.kg.utils import load_applications, load_events, load_summary_metrics
 from sprout.state import GraphState, KG, new_id
 
 logger = logging.getLogger(__name__)
@@ -29,38 +30,92 @@ def build_run_node(run_id: str, samples: list[Sample]) -> NodeEnvelope:
     }
 
 
-def _fetch_tailor_stream() -> dict:
-    url = get_settings().tailor_stream_url_resolved()
-    logger.info("Fetching Tailor stream: %s", url)
-    try:
-        resp = requests.get(url, timeout=30)
-        resp.raise_for_status()
-    except requests.exceptions.HTTPError as exc:
-        raise TailorAPIError(
-            f"Tailor stream fetch failed: {exc}",
-            url=url,
-            status_code=exc.response.status_code if exc.response is not None else None,
-        ) from exc
-    except requests.exceptions.RequestException as exc:
-        raise TailorAPIError(f"Tailor stream request error: {exc}", url=url) from exc
-    logger.debug("Tailor stream fetched successfully")
-    return resp.json()
+def _select_default_app(apps: list[dict]) -> dict[str, Any]:
+    """Pick the default (or first) application from the Stitch applications list."""
+    if not apps:
+        return {"application_id": "local-app", "name": "local", "type": "local"}
+    app = next((a for a in apps if a.get("default") is True), apps[0])
+    app_type = app.get("type", {})
+    type_key = app_type.get("key", "unknown") if isinstance(app_type, dict) else "unknown"
+    return {
+        "application_id": app.get("application_id", "local-app"),
+        "name": app.get("name", "local"),
+        "type": type_key,
+    }
+
+
+def _build_diagnostics(events: list[dict]) -> list[dict]:
+    """Aggregate event codes into a diagnostics summary."""
+    codes: dict[str, dict[str, Any]] = {}
+    total = 0
+    for event in events:
+        code = event.get("event_code") or event.get("code") or event.get("eventCode")
+        if code is None:
+            continue
+        code_str = str(code)
+        codes.setdefault(code_str, {"count": 0, "isActive": False})
+        codes[code_str]["count"] += 1
+        total += 1
+    if total == 0:
+        return []
+    return [{"rowType": "EventCodeCount", "total": total, "codes": codes}]
+
+
+def _normalize_events(events: list[dict]) -> list[dict]:
+    """Normalize raw Stitch events into the event detail format used by analyze."""
+    details: list[dict] = []
+    for event in events:
+        code = event.get("event_code") or event.get("code") or event.get("eventCode")
+        start_record = event.get("start_record") or event.get("startRecord")
+        if code is None or start_record is None:
+            continue
+        details.append({
+            "eventCode": int(code),
+            "start_record": int(start_record),
+            "end_record": event.get("end_record") or event.get("endRecord"),
+            "start_time": event.get("start_time") or event.get("startTime"),
+            "end_time": event.get("end_time") or event.get("endTime"),
+            "location": event.get("location"),
+            "modules": event.get("modules"),
+        })
+    return details
 
 
 async def parse(_: GraphState) -> dict:
-    """Fetch Tailor stream data and build a Run node in the KG."""
-    payload = _fetch_tailor_stream()
-    current = payload.get("currentStream", {})
-    overview = current.get("overview")
-    summary_data = current.get("summaryData", []) or []
-    diagnostics = current.get("diagnostics", []) or []
-    event_details = current.get("diagnosticEventDetails", []) or []
-    run_id = current.get("streamId") or (overview.get("streamId") if overview else None)
-    run_id = run_id or new_id("run")
+    """Fetch application data and events from Stitch; build a Run node in the KG."""
+    logger.info("Fetching data from Stitch")
+
+    apps = load_applications()
+    app = _select_default_app(apps)
+    app_id = app["application_id"]
+
+    summary_metrics: dict[str, float] = {}
+    try:
+        summary_metrics = load_summary_metrics(app_id)
+    except StitchAPIError as exc:
+        logger.warning("Failed to load summary metrics for %s: %s", app_id, exc)
+
+    summary_row: dict[str, Any] = {
+        "applicationId": app_id,
+        "name": app["name"],
+        "type": app["type"],
+        **summary_metrics,
+    }
+
+    raw_events: list[dict] = []
+    try:
+        raw_events = load_events()
+    except StitchAPIError as exc:
+        logger.warning("Failed to load events: %s", exc)
+
+    event_details = _normalize_events(raw_events)
+    diagnostics = _build_diagnostics(raw_events)
+
+    run_id = new_id("run")
     source_file = f"{run_id}.2020"
 
-    if not summary_data:
-        logger.warning("No summary data returned from Tailor stream (run_id=%s)", run_id)
+    if not summary_metrics:
+        logger.warning("No summary metrics returned from Stitch (run_id=%s)", run_id)
 
     samples: list[Sample] = []
     run_node = build_run_node(run_id, samples)
@@ -70,11 +125,9 @@ async def parse(_: GraphState) -> dict:
         "samples": samples,
         "runId": run_id,
         "sourceFile": source_file,
-        "tailorSummary": summary_data,
-        "tailorDiagnostics": diagnostics,
-        "tailorEventDetails": event_details,
-        "tailorOverview": overview,
-        "tailorContext": payload.get("contextStreams", []) or [],
+        "summaryData": [summary_row],
+        "diagnostics": diagnostics,
+        "eventDetails": event_details,
         "kg": kg,
-        "dataQualityFlag": False if summary_data else True,
+        "dataQualityFlag": not bool(summary_metrics),
     }

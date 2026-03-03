@@ -10,15 +10,6 @@ class ConfigurationError(SproutError):
     """Missing or invalid configuration (env vars, file paths)."""
 
 
-class TailorAPIError(SproutError):
-    """Tailor stream fetch failed (network, auth, bad response shape)."""
-
-    def __init__(self, message: str, url: str = "", status_code: int | None = None) -> None:
-        super().__init__(message)
-        self.url = url
-        self.status_code = status_code
-
-
 class StitchAPIError(SproutError):
     """Stitch metrics fetch failed after all retries."""
 
