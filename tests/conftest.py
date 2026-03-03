@@ -21,15 +21,6 @@ def reset_settings(monkeypatch):
 
 
 @pytest.fixture
-def sample_tailor_response():
-    """Load the recorded Tailor API response fixture, if available."""
-    path = FIXTURES_DIR / "sample_tailor_response.json"
-    if path.exists():
-        return json.loads(path.read_text())
-    return {}
-
-
-@pytest.fixture
 def sample_stitch_metrics():
     """Load the recorded Stitch metrics fixture, if available."""
     path = FIXTURES_DIR / "sample_stitch_metrics.json"
