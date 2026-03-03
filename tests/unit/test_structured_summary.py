@@ -14,6 +14,7 @@ from sprout.kg.structured_summary import (
     _format_hybrids,
     _format_key,
     _pick_label,
+    build_operational_prompt,
     build_structured_summary,
     format_structured_summary,
 )
@@ -489,3 +490,134 @@ def test_highlights_appear_in_formatted_output():
     assert highlights_pos < harvest_pos
     assert "Area Covered (ac): 22.53" in result
     assert "Moisture (%): 20.56" in result
+
+
+# --------------------------------------------------------------------------- #
+# build_operational_prompt
+# --------------------------------------------------------------------------- #
+
+
+def test_operational_prompt_none_when_no_task():
+    apps_data = [
+        {
+            "application_type_key": "global",
+            "application_type_name": "Equipment-Wide",
+            "raw_summary": {},
+            "metrics": [{"key": "acres", "name": "Acres", "value": 10.0}],
+        },
+    ]
+    assert build_operational_prompt(apps_data) is None
+
+
+def test_operational_prompt_plant():
+    apps_data = [
+        {
+            "application_type_key": "seeding",
+            "application_type_name": "Seeding",
+            "raw_summary": {
+                "hybrids": [
+                    {"name": {"label": "Hybrid", "value": "FS 6595X RIB"}},
+                    {"name": {"label": "Hybrid", "value": "SV Rate"}},
+                ],
+            },
+            "metrics": [
+                {"key": "population", "name": "Population (seeds/ac)", "value": 34146.76},
+                {"key": "singulation", "name": "Singulation (%)", "value": 99.24},
+            ],
+        },
+    ]
+    result = build_operational_prompt(apps_data)
+    assert result is not None
+    assert "planting" in result
+    assert "Population (seeds/ac): 34,146.76" in result
+    assert "Singulation (%): 99.24" in result
+    assert "Hybrids: FS 6595X RIB, SV Rate" in result
+
+
+def test_operational_prompt_harvest():
+    apps_data = [
+        {
+            "application_type_key": "global",
+            "application_type_name": "Equipment-Wide",
+            "raw_summary": {},
+            "metrics": [
+                {"key": "acres", "name": "Area Covered (ac)", "value": 9.8},
+                {"key": "average_speed", "name": "Average Speed (mph)", "value": 2.7},
+            ],
+        },
+        {
+            "application_type_key": "harvest",
+            "application_type_name": "Harvest",
+            "raw_summary": {},
+            "metrics": [
+                {"key": "moisture", "name": "Moisture (%)", "value": 20.56},
+                {"key": "dryyieldavg", "name": "Average Dry Yield (bu/ac)", "value": 223.0},
+            ],
+        },
+    ]
+    result = build_operational_prompt(apps_data)
+    assert result is not None
+    assert "harvest" in result
+    assert "Area Covered (ac): 9.80" in result
+    assert "Average Speed (mph): 2.70" in result
+    assert "Moisture (%): 20.56" in result
+    assert "Average Dry Yield (bu/ac): 223.00" in result
+
+
+def test_operational_prompt_spray():
+    apps_data = [
+        {
+            "application_type_key": "global",
+            "application_type_name": "Equipment-Wide",
+            "raw_summary": {},
+            "metrics": [
+                {"key": "acres", "name": "Area Covered (ac)", "value": 0.18},
+                {"key": "average_speed", "name": "Average Speed (mph)", "value": 4.0},
+            ],
+        },
+        {
+            "application_type_key": "liquid",
+            "application_type_name": "Liquid",
+            "raw_summary": {},
+            "metrics": [
+                {"key": "rate", "name": "Rate (gal/ac)", "value": 43.0},
+            ],
+        },
+    ]
+    result = build_operational_prompt(apps_data)
+    assert result is not None
+    assert "spraying" in result
+    assert "Area Covered (ac): 0.18" in result
+    assert "Average Speed (mph): 4.00" in result
+    assert "Rate (gal/ac): 43.00" in result
+
+
+def test_operational_prompt_none_when_no_metrics():
+    apps_data = [
+        {
+            "application_type_key": "harvest",
+            "application_type_name": "Harvest",
+            "raw_summary": {},
+            "metrics": [],
+        },
+    ]
+    # harvest detected but no matching metrics → None
+    assert build_operational_prompt(apps_data) is None
+
+
+def test_operational_prompt_plant_no_hybrids():
+    apps_data = [
+        {
+            "application_type_key": "seeding",
+            "application_type_name": "Seeding",
+            "raw_summary": {},
+            "metrics": [
+                {"key": "population", "name": "Population (seeds/ac)", "value": 32000.0},
+                {"key": "singulation", "name": "Singulation (%)", "value": 98.5},
+            ],
+        },
+    ]
+    result = build_operational_prompt(apps_data)
+    assert result is not None
+    assert "Population (seeds/ac): 32,000.00" in result
+    assert "Hybrid" not in result
