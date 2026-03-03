@@ -118,10 +118,10 @@ def parse_proto_event_codes(proto_path: str) -> dict[int, dict[str, str]]:
 # ---------------------------------------------------------------------------
 
 
-def get_json(url: str, retries: int = 3) -> Any:
+def get_json(url: str, retries: int = 3, timeout: int = 30) -> Any:
     last_error: str | None = None
     for attempt in range(1, retries + 1):
-        resp = requests.get(url, timeout=30)
+        resp = requests.get(url, timeout=timeout)
         if resp.ok:
             return resp.json()
         last_error = f"{resp.status_code} for {url}: {resp.text.strip()}"
@@ -145,7 +145,14 @@ def extract_metrics(payload: dict) -> dict[str, float]:
 
 def load_record_metrics(application_id: str, record_id: int) -> dict[str, float]:
     url = f"{_stitch_base()}/local/metrics/{application_id}?record={record_id}"
-    payload = get_json(url)
+    try:
+        payload = get_json(url)
+    except StitchAPIError as exc:
+        # 404 means the record simply has no metrics data — return empty so
+        # the caller skips it instead of treating it as an error.
+        if "404" in str(exc):
+            return {}
+        raise
     return extract_metrics(payload)
 
 

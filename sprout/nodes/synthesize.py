@@ -1,10 +1,12 @@
 """Synthesize node: produce a Report KG node from findings via LLM."""
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from sprout.config import get_settings
 from sprout.graph_types import NodeEnvelope, ReportPayload
+from sprout.kg.structured_summary import build_structured_summary
 from sprout.state import GraphState, KG, new_id
 
 logger = logging.getLogger(__name__)
@@ -137,11 +139,18 @@ async def synthesize(state: GraphState) -> dict:
         logger.warning("Synthesize: LLM error (backend=%s): %s", backend, llm_error)
     logger.info("Synthesize: report produced via %s (confidence=%.2f)", llm_model, confidence)
 
+    # Fetch structured summary from stitch (appended post-LLM, never seen by the model).
+    structured_text = await asyncio.to_thread(build_structured_summary)
+
+    llm_text = llm_summary or " ".join(report_lines)
+    combined = llm_text + structured_text if structured_text else llm_text
+
     report_id = new_id("rpt")
     report_payload: ReportPayload = {
         "report_id": report_id,
         "run_id": state["runId"],
-        "summary": llm_summary or " ".join(report_lines),
+        "summary": combined,
+        "structured_summary": structured_text,
         "severity": state["topSeverity"],
         "confidence": confidence,
         "finding_refs": state["findingIds"],
