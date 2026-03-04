@@ -1,6 +1,7 @@
 """GraphState TypedDict, reducers, ID counter, and default_state()."""
 from __future__ import annotations
 
+import uuid
 from typing import Annotated, Protocol, TypedDict
 
 from sprout.config import get_settings
@@ -41,6 +42,7 @@ class GraphState(TypedDict):
     topFindingId: str | None
     dataQualityFlag: bool
     excludeEventCodes: list[int]
+    excludeMetrics: list[str]
     severityThreshold: float
     demo: bool
     demoController: "DemoController | None"
@@ -55,15 +57,21 @@ class DemoController(Protocol):
     def wait_for_continue(self) -> None: ...
 
 
-# Global monotonic ID counter — intentionally module-level so it increments
-# across the full lifetime of one pipeline run.
-_id_counter = 0
+# Per-run monotonic ID counter — keyed by run_id so concurrent or
+# sequential runs in the same process never collide.
+_id_counters: dict[str, int] = {}
 
 
-def new_id(prefix: str) -> str:
-    global _id_counter
-    _id_counter += 1
-    return f"{prefix}_{_id_counter:04d}"
+def make_run_id() -> str:
+    """Generate a unique run ID using a short UUID prefix."""
+    return f"run_{uuid.uuid4().hex[:8]}"
+
+
+def new_id(prefix: str, run_id: str) -> str:
+    """Return a namespaced sequential ID like ``evt_a1b2c3d4_0001``."""
+    suffix = run_id.removeprefix("run_")
+    _id_counters[run_id] = _id_counters.get(run_id, 0) + 1
+    return f"{prefix}_{suffix}_{_id_counters[run_id]:04d}"
 
 
 def dedupe_edges(edges: list[Edge]) -> list[Edge]:
@@ -106,6 +114,7 @@ def default_state() -> GraphState:
         "topFindingId": None,
         "dataQualityFlag": False,
         "excludeEventCodes": s.excluded_event_codes(),
+        "excludeMetrics": s.excluded_metrics(),
         "severityThreshold": s.severity_threshold,
         "demo": False,
         "demoController": None,
