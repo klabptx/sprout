@@ -131,3 +131,14 @@ def get_settings() -> Settings:
     if _settings is None:
         _settings = Settings()
     return _settings
+
+
+def reset_settings() -> None:
+    """Reset the cached Settings singleton.
+
+    The next call to ``get_settings()`` will create a fresh instance,
+    re-reading environment variables.  Useful for Lambda handlers that
+    change env vars between invocations.
+    """
+    global _settings
+    _settings = None
