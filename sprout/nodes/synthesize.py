@@ -43,8 +43,10 @@ def _build_llm_prompt(
     if not findings:
         return (
             f"{source_line}"
-            "Write a concise report summary (1-3 sentences). "
-            "No anomalous findings were detected in this run."
+            "Write a concise, one sentence report summary. "
+            "Run findings and metrics normal. "
+            "Do not mention file name or run name. "
+            "Do not mention anomaly or related synonyms. "
         )
 
     finding_sections: list[str] = []
@@ -65,6 +67,8 @@ def _build_llm_prompt(
         f"{source_line}"
         "Write a concise report summary (2-5 sentences) covering ALL findings below. "
         "Prioritize the highest-severity issues. "
+        "Avoid using the word anomaly or any related synonyms. "
+        "Describe the issue without a central noun. "
         "Do not include numerical values, percentages, or event code numbers. "
         "Do not include file names or their .2020 extension. "
         "Do not use bullet points or JSON. Do not add new facts.\n\n"
@@ -116,19 +120,6 @@ async def synthesize(state: GraphState) -> dict:
         state["severityThreshold"],
     )
 
-    # Build fallback report from all findings.
-    report_lines: list[str] = []
-    for fn in finding_nodes:
-        report_lines.append(fn["payload"]["diagnosis_prompt"])
-    if not report_lines:
-        report_lines.append("No critical findings in this run.")
-    report_lines.append(f"Severity {state['topSeverity']:.2f}.")
-    if event_summaries:
-        report_lines.append(f"Evidence: {'; '.join(event_summaries[:8])}.")
-    if recommendation_texts:
-        report_lines.append(f"Suggested checks: {' '.join(recommendation_texts)}")
-    report_lines.append(f"Confidence {confidence:.2f}.")
-
     prompt = _build_llm_prompt(
         finding_nodes,
         event_summaries,
@@ -164,7 +155,17 @@ async def synthesize(state: GraphState) -> dict:
         if op_error:
             logger.warning("Synthesize: operational LLM error: %s", op_error)
 
-    llm_text = llm_summary or " ".join(report_lines)
+    if llm_summary:
+        llm_text = llm_summary
+    else:
+        report_lines: list[str] = []
+        for fn in finding_nodes:
+            report_lines.append(fn["payload"]["diagnosis_prompt"])
+        if not report_lines:
+            report_lines.append("No critical findings in this run.")
+        if recommendation_texts:
+            report_lines.append(f"Suggested checks: {' '.join(recommendation_texts)}")
+        llm_text = " ".join(report_lines)
     combined = llm_text + "\n\n" + operational_sentence if operational_sentence else llm_text
 
     report_id = new_id("rpt")
