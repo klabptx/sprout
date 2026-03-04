@@ -108,6 +108,7 @@ class EventPayload(TypedDict):
     summary: str
     diagnosis_prompt: str
     evidence_refs: list[str]
+    still_active: bool
 
 
 class FindingPayload(TypedDict):

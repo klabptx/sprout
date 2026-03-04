@@ -13,6 +13,7 @@ from sprout.kg.utils import (
     build_metric_to_app_map,
     compare_metrics,
     compute_priority,
+    load_event_code_apps,
     load_record_metrics,
     parse_proto_event_codes,
     spatial_cell,
@@ -83,11 +84,13 @@ async def analyze_event_records(state: GraphState) -> dict:
                 spatial_counts[cell] += 1
 
     # Fetch record-level metrics and compare against summary
-    results: list[tuple[float, str, int, int | None, list[dict[str, Any]], dict]] = []
+    results: list[tuple[float, str, int, int | None, list[dict[str, Any]], dict, bool]] = []
     for code, events in grouped.items():
         for event in events:
             start_record = int(event["start_record"])
             end_record = event.get("end_record")
+            still_active = end_record is None
+
             try:
                 record_metrics = await asyncio.to_thread(
                     load_record_metrics, application_id, start_record
@@ -99,19 +102,23 @@ async def analyze_event_records(state: GraphState) -> dict:
                     code,
                     exc,
                 )
-                continue
+                if still_active:
+                    record_metrics = {}
+                else:
+                    continue
 
             anomalies = compare_metrics(summary_metrics, record_metrics)
-            if not anomalies:
+            if not anomalies and not still_active:
                 continue
 
             priority = compute_priority(
-                anomalies, event, code_counts.get(code, 1), spatial_counts
+                anomalies, event, code_counts.get(code, 1), spatial_counts,
+                still_active=still_active,
             )
-            results.append((priority, code, start_record, end_record, anomalies, event))
+            results.append((priority, code, start_record, end_record, anomalies, event, still_active))
 
     if not results:
-        logger.info("Analyze: no anomalies found with current thresholds")
+        logger.info("Analyze: no anomalies or still-active events found")
         return {"eventIds": [], "findingIds": [], "kg": {}}
 
     results.sort(key=lambda r: r[0], reverse=True)
@@ -123,21 +130,43 @@ async def analyze_event_records(state: GraphState) -> dict:
     kg_updates: KG = {}
     event_ids: list[str] = []
 
-    for priority, code, start_record, end_record, anomalies, event in top_results:
+    for priority, code, start_record, end_record, anomalies, event, still_active in top_results:
         severity = round(min(1.0, priority / max_priority), 2)
         span = max(0, int(end_record) - start_record) if end_record is not None else None
-        top_anomalies = sorted(anomalies, key=lambda a: abs(a["pct_delta"]), reverse=True)
-        summary_parts = [
-            f"{a['metric']}={a['record']:.3f} (expected {a['summary']:.3f}, {a['pct_delta']:+.0%})"
-            for a in top_anomalies[:3]
-        ]
         ecd = event_code_defs.get(int(code))
         code_label = f"{code} ({ecd['title']})" if ecd and ecd.get("title") else str(code)
-        event_summary = (
-            f"Event code {code_label} @ record {start_record}: "
-            f"{len(anomalies)} anomalous metric{'s' if len(anomalies) != 1 else ''}. "
-            f"{'; '.join(summary_parts)}."
-        )
+
+        if anomalies:
+            top_anomalies = sorted(anomalies, key=lambda a: abs(a["pct_delta"]), reverse=True)
+            summary_parts = [
+                f"{a['metric']}={a['record']:.3f} (expected {a['summary']:.3f}, {a['pct_delta']:+.0%})"
+                for a in top_anomalies[:3]
+            ]
+            event_summary = (
+                f"Event code {code_label} @ record {start_record}: "
+                f"{len(anomalies)} anomalous metric{'s' if len(anomalies) != 1 else ''}. "
+                f"{'; '.join(summary_parts)}."
+            )
+            diagnosis = (
+                f"Event code {code_label} at record {start_record}"
+                + (f" (span {span} records)" if span else "")
+                + f": {len(anomalies)} anomalous metrics. "
+                + "; ".join(
+                    f"{a['metric']}: record={a['record']:.3f}, summary={a['summary']:.3f}, "
+                    f"deviation={a['pct_delta']:+.0%}"
+                    for a in top_anomalies[:6]
+                )
+                + "."
+            )
+        else:
+            event_summary = (
+                f"Event code {code_label} @ record {start_record}: "
+                f"still active (no end record)."
+            )
+            diagnosis = (
+                f"Event code {code_label} at record {start_record}: "
+                f"still active with no end record — event has not resolved."
+            )
 
         event_id = new_id("evt", state["runId"])
         event_ids.append(event_id)
@@ -153,18 +182,9 @@ async def analyze_event_records(state: GraphState) -> dict:
             "priority_score": priority,
             "anomalies": anomalies,
             "summary": event_summary,
-            "diagnosis_prompt": (
-                f"Event code {code_label} at record {start_record}"
-                + (f" (span {span} records)" if span else "")
-                + f": {len(anomalies)} anomalous metrics. "
-                + "; ".join(
-                    f"{a['metric']}: record={a['record']:.3f}, summary={a['summary']:.3f}, "
-                    f"deviation={a['pct_delta']:+.0%}"
-                    for a in top_anomalies[:6]
-                )
-                + "."
-            ),
+            "diagnosis_prompt": diagnosis,
             "evidence_refs": [f"record:{application_id}:{start_record}"],
+            "still_active": still_active,
         }
         kg_updates[event_id] = {
             "node_id": event_id,
@@ -180,18 +200,22 @@ async def analyze_event_records(state: GraphState) -> dict:
         logger.warning("Analyze: could not build metric-to-app map: %s", exc)
         metric_to_app = {}
 
+    code_to_app = load_event_code_apps()
+
     common_events = [
         {
             "event_id": evt_id,
             "event_code": kg_updates[evt_id]["payload"]["event_code"],
             "severity": kg_updates[evt_id]["payload"]["severity"],
             "anomalies": kg_updates[evt_id]["payload"]["anomalies"],
+            "still_active": kg_updates[evt_id]["payload"]["still_active"],
         }
         for evt_id in event_ids
     ]
 
     raw_findings = build_findings_by_app_type(
-        common_events, metric_to_app, application_id, event_code_defs
+        common_events, metric_to_app, application_id, event_code_defs,
+        code_to_app=code_to_app,
     )
 
     finding_ids: list[str] = []

@@ -117,16 +117,23 @@ _FIELD_RE = re.compile(
 )
 
 
+def _read_proto(proto_path: str) -> str:
+    """Read and return proto file text, or empty string on missing file."""
+    try:
+        with open(proto_path, "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        return ""
+
+
 def parse_proto_event_codes(proto_path: str) -> dict[int, dict[str, str]]:
     """Parse a SystemLog.proto file and return event code definitions.
 
     Returns ``{code_int: {"name": ..., "title": ..., "description": ..., "recommendation": ...}}``.
     Fields absent in the proto entry are omitted from the dict.
     """
-    try:
-        with open(proto_path, "r") as f:
-            text = f.read()
-    except FileNotFoundError:
+    text = _read_proto(proto_path)
+    if not text:
         return {}
 
     result: dict[int, dict[str, str]] = {}
@@ -141,6 +148,30 @@ def parse_proto_event_codes(proto_path: str) -> dict[int, dict[str, str]]:
             if field_name in ("title", "description", "recommendation"):
                 entry[field_name] = value
         result[code] = entry
+    return result
+
+
+def load_event_code_apps() -> dict[int, str]:
+    """Load the static event-code → application-type mapping.
+
+    Reads ``sprout/event_code_apps.json`` (generated from SystemLog.proto
+    section comments) and inverts it into ``{code_int: app_type_key}``.
+    """
+    import json
+    from pathlib import Path
+
+    json_path = Path(__file__).resolve().parent.parent / "event_code_apps.json"
+    try:
+        with open(json_path, "r") as f:
+            data: dict[str, list[int]] = json.load(f)
+    except FileNotFoundError:
+        logger.warning("event_code_apps.json not found at %s", json_path)
+        return {}
+
+    result: dict[int, str] = {}
+    for app_type, codes in data.items():
+        for code in codes:
+            result[code] = app_type
     return result
 
 
@@ -330,11 +361,20 @@ def compute_priority(
     event: dict,
     code_count: int,
     spatial_counts: Counter,
+    *,
+    still_active: bool = False,
 ) -> float:
-    if not anomalies:
+    if not anomalies and not still_active:
         return 0.0
-    co = len(anomalies)
-    co_score = co ** 2 * max(abs(a["pct_delta"]) for a in anomalies)
+
+    if anomalies:
+        co = len(anomalies)
+        co_score = co ** 2 * max(abs(a["pct_delta"]) for a in anomalies)
+    else:
+        # Still-active events with no anomalies get a meaningful base score
+        # so they surface prominently in the findings.
+        co_score = 2.0
+
     span = record_span(event)
     duration_weight = 1.0 + math.log1p(span)
     frequency_factor = math.log2(1 + code_count)
@@ -342,7 +382,15 @@ def compute_priority(
     spatial_boost = 1.0
     if cell is not None and spatial_counts[cell] > 1:
         spatial_boost = min(2.0, spatial_counts[cell] / 3)
-    return co_score * duration_weight * frequency_factor * spatial_boost
+
+    base = co_score * duration_weight * frequency_factor * spatial_boost
+
+    # Still-active events get an additional boost — an unresolved event is
+    # inherently more actionable than a closed one.
+    if still_active:
+        base *= 3.0
+
+    return base
 
 
 # ---------------------------------------------------------------------------
@@ -350,11 +398,14 @@ def compute_priority(
 # ---------------------------------------------------------------------------
 
 
+
 def build_findings_by_app_type(
     events: list[dict[str, Any]],
     metric_to_app: dict[str, dict[str, str]],
     fallback_application_id: str,
     event_code_defs: dict[int, dict[str, str]] | None = None,
+    *,
+    code_to_app: dict[int, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Accumulate anomalous events into findings grouped by application type.
 
@@ -367,13 +418,35 @@ def build_findings_by_app_type(
             "anomalies":  [{"metric": str, "summary": float, "pct_delta": float, ...}],
         }
 
+    *code_to_app* is an optional mapping from event code → application label
+    (e.g. from :func:`parse_proto_event_code_apps`).  It is used to route
+    still-active events that have no anomalies (and therefore no metric-based
+    app mapping) into the correct application finding.
+
     Returns a list of plain finding dicts (no KG wrappers), sorted by severity
     descending.
     """
+    code_to_app = code_to_app or {}
     app_acc: dict[str, dict[str, Any]] = {}
 
+    def _ensure_acc(type_key: str, app_id: str, app_name: str) -> dict[str, Any]:
+        if type_key not in app_acc:
+            app_acc[type_key] = {
+                "application_id": app_id,
+                "application_type": type_key,
+                "application_name": app_name,
+                "event_ids": set(),
+                "code_events": defaultdict(set),
+                "metrics": {},
+                "max_severity": 0.0,
+            }
+        return app_acc[type_key]
+
     for evt in events:
-        for anomaly in evt.get("anomalies", []):
+        anomalies = evt.get("anomalies", [])
+
+        # Route events with anomalies via metric-to-app mapping (existing behaviour)
+        for anomaly in anomalies:
             metric_key: str = anomaly["metric"]
             app_info = metric_to_app.get(metric_key)
             if not app_info:
@@ -384,17 +457,7 @@ def build_findings_by_app_type(
                     "metric_name": metric_key.removeprefix("metrics."),
                 }
             type_key = app_info["application_type"]
-            if type_key not in app_acc:
-                app_acc[type_key] = {
-                    "application_id": app_info["application_id"],
-                    "application_type": type_key,
-                    "application_name": app_info["application_name"],
-                    "event_ids": set(),
-                    "code_events": defaultdict(set),
-                    "metrics": {},
-                    "max_severity": 0.0,
-                }
-            acc = app_acc[type_key]
+            acc = _ensure_acc(type_key, app_info["application_id"], app_info["application_name"])
             eid = evt["event_id"]
             acc["event_ids"].add(eid)
             acc["code_events"][str(evt["event_code"])].add(eid)
@@ -415,6 +478,17 @@ def build_findings_by_app_type(
                 m["peak_pos"] = max(m["peak_pos"], pct_d)
             else:
                 m["peak_neg"] = min(m["peak_neg"], pct_d)
+
+        # Still-active events with no anomalies: route via proto code-to-app mapping
+        if not anomalies and evt.get("still_active"):
+            eid = evt["event_id"]
+            ec = evt["event_code"]
+            type_key = code_to_app.get(ec, "unknown")
+            app_name = type_key.replace("_", " ").title()
+            acc = _ensure_acc(type_key, fallback_application_id, app_name)
+            acc["event_ids"].add(eid)
+            acc["code_events"][str(ec)].add(eid)
+            acc["max_severity"] = max(acc["max_severity"], evt.get("severity", 0))
 
     findings: list[dict[str, Any]] = []
     for acc in app_acc.values():
@@ -455,13 +529,13 @@ def build_findings_by_app_type(
                 line = f"{code} ({count})"
             code_lines.append(line)
 
-        diagnosis_prompt = (
-            f"{acc['application_name']} Findings:\n"
-            f"Anomalous metrics detected:\n"
-            + "\n".join(metric_lines)
-            + "\n\nEvent codes:\n"
-            + "\n".join(code_lines)
-        )
+        parts: list[str] = [f"{acc['application_name']} Findings:"]
+        if metric_lines:
+            parts.append("Anomalous metrics detected:")
+            parts.append("\n".join(metric_lines))
+        parts.append("\nEvent codes:")
+        parts.append("\n".join(code_lines))
+        diagnosis_prompt = "\n".join(parts)
 
         findings.append(
             {
