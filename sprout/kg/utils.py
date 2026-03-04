@@ -5,14 +5,45 @@ scripts (``scripts/compare_event_records.py``).
 """
 from __future__ import annotations
 
+import logging
 import math
 import re
+import time
 from collections import Counter, defaultdict
 from typing import Any
 
 import requests
 
+logger = logging.getLogger(__name__)
+
 from sprout.exceptions import StitchAPIError
+
+
+# ---------------------------------------------------------------------------
+# Shared HTTP session — persists cookies across Stitch API calls.
+# ---------------------------------------------------------------------------
+
+_session: requests.Session | None = None
+
+
+def _get_session() -> requests.Session:
+    global _session
+    if _session is None:
+        _session = requests.Session()
+    return _session
+
+
+def reset_stitch_session() -> None:
+    """Close and discard the shared HTTP session.
+
+    The next Stitch call will create a fresh session.  Call this between
+    Lambda invocations so that cookies from one org/stream do not leak
+    into another.
+    """
+    global _session
+    if _session is not None:
+        _session.close()
+        _session = None
 
 
 # ---------------------------------------------------------------------------
@@ -119,11 +150,19 @@ def parse_proto_event_codes(proto_path: str) -> dict[int, dict[str, str]]:
 
 
 def get_json(url: str, retries: int = 3, timeout: int = 30) -> Any:
+    session = _get_session()
     last_error: str | None = None
     for attempt in range(1, retries + 1):
-        resp = requests.get(url, timeout=timeout)
+        t0 = time.monotonic()
+        resp = session.get(url, timeout=timeout)
+        elapsed_ms = (time.monotonic() - t0) * 1000
         if resp.ok:
+            logger.info("Stitch %d %s (%d ms)", resp.status_code, url, elapsed_ms)
             return resp.json()
+        logger.warning(
+            "Stitch %d %s (%d ms, attempt %d/%d)",
+            resp.status_code, url, elapsed_ms, attempt, retries,
+        )
         last_error = f"{resp.status_code} for {url}: {resp.text.strip()}"
         if resp.status_code in {500, 502, 503, 504} and attempt < retries:
             continue
