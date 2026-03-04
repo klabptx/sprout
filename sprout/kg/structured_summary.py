@@ -15,34 +15,11 @@ from sprout.kg.utils import _stitch_base, get_json, load_applications
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Task-specific featured metrics
-# ---------------------------------------------------------------------------
-# Maps a detected task to the metrics that should appear in the task
-# highlights section.  Each entry is (app_type_key, metric_key, source)
-# where *source* is ``"impl_avg"`` or ``"top"`` (matching the two buckets
-# in ``_extract_summary_metrics``).  The special source ``"hybrids"``
-# pulls the hybrid list from the raw summary payload.
-TASK_HIGHLIGHTS: dict[str, list[tuple[str, str, str]]] = {
-    "plant": [
-        ("seeding", "population", "impl_avg"),
-        ("seeding", "singulation", "impl_avg"),
-        ("seeding", "hybrids", "hybrids"),
-    ],
-    "harvest": [
-        ("global", "acres", "top"),
-        ("global", "average_speed", "top"),
-        ("harvest", "moisture", "top"),
-        ("harvest", "dryyieldavg", "top"),
-    ],
-    "spray": [
-        ("liquid", "rate", "top"),
-    ],
-}
-
 # Maps a detected task to the metrics used in the LLM operational prompt.
-# Same tuple shape as TASK_HIGHLIGHTS: (app_type_key, metric_key, source).
-# Spray includes global acres/speed which aren't in its display highlights.
+# Each entry is (app_type_key, metric_key, source) where *source* is
+# ``"impl_avg"`` or ``"top"`` (matching the two buckets in
+# ``_extract_summary_metrics``).  The special source ``"hybrids"``
+# pulls the hybrid list from the raw summary payload.
 OPERATIONAL_METRICS: dict[str, list[tuple[str, str, str]]] = {
     "plant": [
         ("seeding", "population", "impl_avg"),
@@ -293,65 +270,12 @@ def fetch_structured_summary() -> list[dict[str, Any]]:
     return result
 
 
-def _build_task_highlights(apps_data: list[dict[str, Any]]) -> list[str]:
-    """Build the task-specific highlight lines from application data.
-
-    Returns a list of formatted strings (one per featured metric), or an
-    empty list if no task could be detected or no featured metrics were found.
-    """
-    type_keys = {app["application_type_key"] for app in apps_data}
-    task = _detect_task(type_keys)
-    if task is None:
-        return []
-
-    highlights_spec = TASK_HIGHLIGHTS.get(task, [])
-    if not highlights_spec:
-        return []
-
-    # Index apps by type key (first match wins for a given type).
-    apps_by_type: dict[str, dict[str, Any]] = {}
-    for app in apps_data:
-        tk = app["application_type_key"]
-        if tk not in apps_by_type:
-            apps_by_type[tk] = app
-
-    lines: list[str] = []
-    for app_type_key, metric_key, source in highlights_spec:
-        app = apps_by_type.get(app_type_key)
-        if app is None:
-            continue
-
-        if source == "hybrids":
-            raw = app.get("raw_summary", {})
-            hybrids = raw.get("hybrids")
-            if isinstance(hybrids, list) and hybrids:
-                formatted = _format_hybrids(hybrids)
-                if formatted:
-                    lines.append(f"  Seed Hybrids: {formatted}")
-            continue
-
-        # Look up the metric in the app's already-extracted metrics list.
-        for m in app.get("metrics", []):
-            if m["key"] == metric_key and m["value"] is not None:
-                lines.append(f"  {m['name']}: {m['value']:,.2f}")
-                break
-
-    return lines
-
-
 def format_structured_summary(apps_data: list[dict[str, Any]]) -> str:
     """Format application metric data as human-readable text."""
     if not apps_data:
         return ""
 
     lines: list[str] = ["", "--- Structured Summary ---", ""]
-
-    # Task-specific highlights at the top.
-    highlight_lines = _build_task_highlights(apps_data)
-    if highlight_lines:
-        lines.append("Run Highlights")
-        lines.extend(highlight_lines)
-        lines.append("")
 
     for app in apps_data:
         type_name = app["application_type_name"]

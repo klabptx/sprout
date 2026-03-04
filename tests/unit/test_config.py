@@ -91,6 +91,35 @@ def test_excluded_codes_mixed(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
+# excluded_metrics()
+# --------------------------------------------------------------------------- #
+
+
+def test_excluded_metrics_empty(monkeypatch):
+    monkeypatch.setenv("EXCLUDE_METRICS", "")
+    s = Settings()
+    assert s.excluded_metrics() == []
+
+
+def test_excluded_metrics_single(monkeypatch):
+    monkeypatch.setenv("EXCLUDE_METRICS", "metrics.singulation")
+    s = Settings()
+    assert s.excluded_metrics() == ["metrics.singulation"]
+
+
+def test_excluded_metrics_list(monkeypatch):
+    monkeypatch.setenv("EXCLUDE_METRICS", "metrics.singulation,metrics.population")
+    s = Settings()
+    assert s.excluded_metrics() == ["metrics.singulation", "metrics.population"]
+
+
+def test_excluded_metrics_whitespace(monkeypatch):
+    monkeypatch.setenv("EXCLUDE_METRICS", " metrics.singulation , metrics.population ")
+    s = Settings()
+    assert s.excluded_metrics() == ["metrics.singulation", "metrics.population"]
+
+
+# --------------------------------------------------------------------------- #
 # get_settings() singleton
 # --------------------------------------------------------------------------- #
 
