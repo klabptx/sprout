@@ -56,6 +56,13 @@ async def analyze_event_records(state: GraphState) -> dict:
         for code_str, info in codes_map.items():
             code_counts[code_str] = info.get("count", 1) if isinstance(info, dict) else 1
 
+    excluded_metrics: set[str] = set(state.get("excludeMetrics") or [])
+    summary_metrics = {k: v for k, v in summary_metrics.items() if k not in excluded_metrics}
+
+    if not summary_metrics:
+        logger.info("Analyze: all summary metrics excluded — skipping")
+        return {"eventIds": [], "findingIds": [], "kg": {}}
+
     excluded_codes: set[int] = set(state.get("excludeEventCodes") or [])
     grouped: dict[str, list[dict]] = defaultdict(list)
     for event in event_details:
@@ -132,7 +139,7 @@ async def analyze_event_records(state: GraphState) -> dict:
             f"{'; '.join(summary_parts)}."
         )
 
-        event_id = new_id("evt")
+        event_id = new_id("evt", state["runId"])
         event_ids.append(event_id)
         event_payload: EventPayload = {
             "event_id": event_id,
@@ -191,7 +198,7 @@ async def analyze_event_records(state: GraphState) -> dict:
     event_to_findings: dict[str, list[str]] = defaultdict(list)
 
     for f in raw_findings:
-        finding_id = new_id("find")
+        finding_id = new_id("find", state["runId"])
         finding_ids.append(finding_id)
 
         finding_payload: FindingPayload = {
