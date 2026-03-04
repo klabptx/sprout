@@ -39,7 +39,7 @@ async def augment(state: GraphState) -> dict:
 
     app_type = finding_node["payload"]["application_type"]
     snippets = rag_stub(app_type)
-    augmentation_id = new_id("aug")
+    augmentation_id = new_id("aug", state["runId"])
     augmentation_payload: AugmentationPayload = {
         "augmentation_id": augmentation_id,
         "query": f"{app_type} planter troubleshooting",
@@ -56,7 +56,7 @@ async def augment(state: GraphState) -> dict:
     kg_updates: KG = {augmentation_id: augmentation_node}
 
     for snippet in snippets:
-        recommendation_id = new_id("rec")
+        recommendation_id = new_id("rec", state["runId"])
         recommendation_payload: RecommendationPayload = {
             "recommendation_id": recommendation_id,
             "finding_id": finding_node["node_id"],

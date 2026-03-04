@@ -21,7 +21,7 @@ async def prioritize(state: GraphState) -> dict:
         if not finding_node:
             continue
         score = round(float(finding_node["payload"]["severity"]), 2)
-        priority_id = new_id("prio")
+        priority_id = new_id("prio", state["runId"])
         priority_payload: PriorityPayload = {
             "priority_id": priority_id,
             "finding_id": finding_id,

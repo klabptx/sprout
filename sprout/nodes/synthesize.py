@@ -168,7 +168,7 @@ async def synthesize(state: GraphState) -> dict:
         llm_text = " ".join(report_lines)
     combined = llm_text + "\n\n" + operational_sentence if operational_sentence else llm_text
 
-    report_id = new_id("rpt")
+    report_id = new_id("rpt", state["runId"])
     report_payload: ReportPayload = {
         "report_id": report_id,
         "run_id": state["runId"],

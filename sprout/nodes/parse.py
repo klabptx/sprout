@@ -9,7 +9,7 @@ from sprout.config import get_settings
 from sprout.exceptions import StitchAPIError
 from sprout.graph_types import NodeEnvelope, RunPayload, Sample
 from sprout.kg.utils import load_applications, load_events, load_summary_metrics
-from sprout.state import GraphState, KG, new_id
+from sprout.state import GraphState, KG, make_run_id
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +111,7 @@ async def parse(_: GraphState) -> dict:
     event_details = _normalize_events(raw_events)
     diagnostics = _build_diagnostics(raw_events)
 
-    run_id = new_id("run")
+    run_id = make_run_id()
     source_file = f"{run_id}.2020"
 
     if not summary_metrics:
