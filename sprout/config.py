@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     llm_backend: str = "openai"
     severity_threshold: float = 0.75
     exclude_event_codes: str = ""
+    exclude_metrics: str = ""
     event_proto_path: str = "SystemLog.proto"
     sample_rate_hz: int = 5
     compare_output_dir: str = "artifacts/compare_results"
@@ -116,6 +117,12 @@ class Settings(BaseSettings):
         from sprout.kg.utils import parse_excluded_event_codes
 
         return parse_excluded_event_codes(self.exclude_event_codes)
+
+    def excluded_metrics(self) -> list[str]:
+        """Parse EXCLUDE_METRICS into a list of metric key strings."""
+        if not self.exclude_metrics.strip():
+            return []
+        return [m.strip() for m in self.exclude_metrics.split(",") if m.strip()]
 
 
 # --------------------------------------------------------------------------- #
