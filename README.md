@@ -1,7 +1,7 @@
 # Sprout - Aurora Knowledge Graph Pipeline (Python)
 
 
-This is a Python application that generates a knowledge graph model to ground, empower, and define Precision Planting's AI applications (including but not limited to aurora). It builds a small DAG that:
+This is a Python application that generates a knowledge graph model to ground, empower, and define Precision Planting's AI applications (including but not limited to Aurora). It builds a small DAG that:
 
 - fetches application data, summary metrics, and diagnostic events from Stitch
 - compares record-level metrics against summary averages for each diagnostic event
