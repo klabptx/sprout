@@ -15,9 +15,9 @@ from typing import Any
 
 import requests
 
-logger = logging.getLogger(__name__)
-
 from sprout.exceptions import StitchAPIError
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -116,7 +116,7 @@ _FIELD_RE = re.compile(
 def _read_proto(proto_path: str) -> str:
     """Read and return proto file text, or empty string on missing file."""
     try:
-        with open(proto_path, "r") as f:
+        with open(proto_path) as f:
             return f.read()
     except FileNotFoundError:
         return ""
@@ -158,7 +158,7 @@ def load_event_code_apps() -> dict[int, str]:
 
     json_path = Path(__file__).resolve().parent.parent / "event_code_apps.json"
     try:
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data: dict[str, list[int]] = json.load(f)
     except FileNotFoundError:
         logger.warning("event_code_apps.json not found at %s", json_path)

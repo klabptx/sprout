@@ -6,7 +6,6 @@ import pytest
 
 from sprout.config import Settings, get_settings
 
-
 # --------------------------------------------------------------------------- #
 # Settings instantiation
 # --------------------------------------------------------------------------- #

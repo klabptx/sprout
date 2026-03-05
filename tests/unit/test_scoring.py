@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from sprout.nodes.synthesize import compute_confidence
 
 

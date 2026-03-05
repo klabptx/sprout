@@ -11,7 +11,7 @@ from sprout.kg.structured_summary import (
     build_operational_prompt,
     fetch_structured_summary,
 )
-from sprout.state import GraphState, KG, new_id
+from sprout.state import KG, GraphState, new_id
 
 logger = logging.getLogger(__name__)
 

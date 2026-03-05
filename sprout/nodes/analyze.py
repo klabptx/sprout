@@ -8,7 +8,7 @@ from collections import Counter, defaultdict
 from typing import Any
 
 from sprout.config import get_settings
-from sprout.graph_types import EventPayload, FindingPayload, NodeEnvelope
+from sprout.graph_types import EventPayload, FindingPayload
 from sprout.kg.utils import (
     build_findings_by_app_type,
     build_metric_to_app_map,
@@ -19,7 +19,7 @@ from sprout.kg.utils import (
     parse_proto_event_codes,
     spatial_cell,
 )
-from sprout.state import GraphState, KG, new_id
+from sprout.state import KG, GraphState, new_id
 
 logger = logging.getLogger(__name__)
 

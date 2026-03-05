@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from collections import Counter
 
-import pytest
-
 from sprout.kg.utils import (
     build_findings_by_app_type,
     compare_metrics,
@@ -14,7 +12,6 @@ from sprout.kg.utils import (
     record_span,
     spatial_cell,
 )
-
 
 # --------------------------------------------------------------------------- #
 # compare_metrics

@@ -7,9 +7,8 @@ import os
 from typing import Any
 
 import dash
-from dash import Dash, dcc, html, dash_table, Input, Output, State
 import plotly.express as px
-
+from dash import Dash, Input, Output, State, dash_table, dcc, html
 
 INPUT_GLOB = os.getenv("COMPARE_RESULTS_GLOB", "artifacts/compare_results/*.json")
 PORT = int(os.getenv("COMPARE_DASH_PORT", "8050"))
@@ -32,7 +31,7 @@ def _load_batch_summaries(path: str) -> tuple[str, dict[str, dict]]:
     """Load a batch JSONL file and return (model_label, {file: summary_record})."""
     index: dict[str, dict] = {}
     model_label: str = os.path.basename(path)
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         for line in fh:
             line = line.strip()
             if not line:
@@ -64,7 +63,7 @@ def _load_results(
     event_rows: list[dict[str, Any]] = []
     finding_rows: list[dict[str, Any]] = []
     for path in paths:
-        with open(path, "r", encoding="utf-8") as handle:
+        with open(path, encoding="utf-8") as handle:
             payload = json.load(handle)
         fname = os.path.basename(path)
         if isinstance(payload, list):
@@ -103,7 +102,7 @@ def _load_with_cache(
     if os.path.exists(CACHE_PATH):
         cache_mtime = os.path.getmtime(CACHE_PATH)
         if cache_mtime >= latest_mtime:
-            with open(CACHE_PATH, "r", encoding="utf-8") as handle:
+            with open(CACHE_PATH, encoding="utf-8") as handle:
                 cached = json.load(handle)
             if isinstance(cached, dict) and "events" in cached:
                 return cached["events"], cached.get("findings", [])

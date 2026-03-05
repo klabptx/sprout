@@ -6,9 +6,6 @@ import base64
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
-
 # ------------------------------------------------------------------ #
 # Parameter extraction
 # ------------------------------------------------------------------ #
@@ -82,8 +79,9 @@ def test_handler_sets_stitch_url(mock_build, monkeypatch):
     mock_compiled.ainvoke = AsyncMock(return_value=_MOCK_RESULT)
     mock_build.return_value = mock_compiled
 
-    from sprout.lambda_handler import handler
     import os
+
+    from sprout.lambda_handler import handler
 
     handler(
         {"queryStringParameters": {"org_code": "ORG1", "stream_id": "STREAM2"}},

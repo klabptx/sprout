@@ -9,7 +9,7 @@ from sprout.config import get_settings
 from sprout.exceptions import StitchAPIError
 from sprout.graph_types import NodeEnvelope, RunPayload, Sample
 from sprout.kg.utils import load_applications, load_events, load_summary_metrics
-from sprout.state import GraphState, KG, make_run_id
+from sprout.state import KG, GraphState, make_run_id
 
 logger = logging.getLogger(__name__)
 

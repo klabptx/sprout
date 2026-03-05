@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 from sprout.graph_types import AugmentationPayload, NodeEnvelope, RecommendationPayload
-from sprout.state import GraphState, KG, new_id, with_edges
+from sprout.state import KG, GraphState, new_id, with_edges
 
 logger = logging.getLogger(__name__)
 

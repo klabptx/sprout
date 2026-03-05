@@ -15,11 +15,10 @@ import logging
 import os
 
 from sprout.config import reset_settings
-from sprout.kg.utils import reset_stitch_session
-from sprout.logging_config import configure_logging
-
 from sprout.exceptions import SproutError
 from sprout.graph import build_graph
+from sprout.kg.utils import reset_stitch_session
+from sprout.logging_config import configure_logging
 from sprout.state import default_state
 
 logger = logging.getLogger(__name__)
