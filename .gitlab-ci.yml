@@ -1,0 +1,43 @@
+variables:
+  ECR_REPOSITORY: sprout-lambda
+
+stages:
+  - check
+  - publish
+
+lint:
+  stage: check
+  image: python:3.11
+  script:
+    - pip install -e ".[dev]"
+    - ruff check sprout/ tests/
+    - ruff format --check sprout/ tests/
+  rules:
+    - if: $CI_MERGE_REQUEST_ID
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+test:
+  stage: check
+  image: python:3.11
+  script:
+    - pip install -e ".[openai,dev]"
+    - pytest tests/
+  rules:
+    - if: $CI_MERGE_REQUEST_ID
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+publish:
+  stage: publish
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - apk add --no-cache aws-cli
+    - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+  script:
+    - docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$CI_COMMIT_SHA .
+    - docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$CI_COMMIT_SHA $ECR_REGISTRY/$ECR_REPOSITORY:latest
+    - docker push $ECR_REGISTRY/$ECR_REPOSITORY:$CI_COMMIT_SHA
+    - docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
