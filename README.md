@@ -1,5 +1,21 @@
 # Sprout - Aurora Knowledge Graph Pipeline (Python)
 
+- [Knowledge Graph: Events and Findings](#knowledge-graph-events-and-findings)
+- [Pipeline Flow](#pipeline-flow)
+- [Quick Start](#quick-start)
+  - [Run compare on a local .2020 file](#run-compare-on-a-local-2020-file)
+  - [Run the full KG demo](#run-the-full-kg-demo)
+  - [Batch demo pipeline](#batch-demo-pipeline)
+  - [Compare + Plot](#compare--plot)
+  - [LLM backend selection](#llm-backend-selection)
+  - [Synthesize configuration](#synthesize-configuration)
+  - [Operational summary](#operational-summary)
+  - [Structured summary](#structured-summary)
+  - [Event code definitions](#event-code-definitions)
+- [Lambda Deployment](#lambda-deployment)
+- [CI/CD](#cicd)
+- [Files](#files)
+- [Notes](#notes)
 
 This is a Python application that generates a knowledge graph model to ground, empower, and define Precision Planting's AI applications (including but not limited to Aurora). It builds a small DAG that:
 
@@ -37,7 +53,7 @@ START → parse → analyze_event_records → prioritize → synthesize → END
 
 The `synthesize` node collects all findings (sorted by severity, optionally capped to top-N), builds a multi-finding LLM prompt, and generates a report. After the first LLM call, a second LLM call produces a short **operational summary** sentence from task-specific metrics (e.g., "Harvest shows about 9.8 acres at ~2.7 mph with moisture around 21% and dry yield near 223 bu/acre."). 
 
-## Quick start
+## Quick Start
 
 ```bash
 python -m venv .venv
