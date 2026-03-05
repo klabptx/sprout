@@ -214,7 +214,7 @@ the LLM. You can cap the number of findings included in the prompt:
 
 | State field | Default | Description |
 |---|---|---|
-| `synthesizeMaxFindings` | `-1` | Max findings in LLM prompt (`-1` = all) |
+| `synthesize_max_findings` | `-1` | Max findings in LLM prompt (`-1` = all) |
 
 ### Operational summary
 

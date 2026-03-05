@@ -32,15 +32,15 @@ def rag_stub(application_type: str) -> list[str]:
 
 async def augment(state: GraphState) -> dict:
     """Attach mock RAG snippets as recommendations for the top finding."""
-    if not state["topFindingId"]:
+    if not state["top_finding_id"]:
         return {}
-    finding_node = state["kg"].get(state["topFindingId"])
+    finding_node = state["kg"].get(state["top_finding_id"])
     if not finding_node:
         return {}
 
     app_type = finding_node["payload"]["application_type"]
     snippets = rag_stub(app_type)
-    augmentation_id = new_id("aug", state["runId"])
+    augmentation_id = new_id("aug", state["run_id"])
     augmentation_payload: AugmentationPayload = {
         "augmentation_id": augmentation_id,
         "query": f"{app_type} planter troubleshooting",
@@ -57,7 +57,7 @@ async def augment(state: GraphState) -> dict:
     kg_updates: KG = {augmentation_id: augmentation_node}
 
     for snippet in snippets:
-        recommendation_id = new_id("rec", state["runId"])
+        recommendation_id = new_id("rec", state["run_id"])
         recommendation_payload: RecommendationPayload = {
             "recommendation_id": recommendation_id,
             "finding_id": finding_node["node_id"],
@@ -87,7 +87,7 @@ async def augment(state: GraphState) -> dict:
         len(recommendation_ids),
     )
     return {
-        "augmentationIds": [augmentation_id],
-        "recommendationIds": recommendation_ids,
+        "augmentation_ids": [augmentation_id],
+        "recommendation_ids": recommendation_ids,
         "kg": kg_updates,
     }

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import logging
 from collections import Counter
-from typing import Awaitable, Callable, Protocol
+from collections.abc import Awaitable, Callable
+from typing import Protocol
 
 from langgraph.graph import END, START, StateGraph
 
@@ -77,9 +78,9 @@ def _build_demo_payload(stage: str, state: GraphState, result: dict) -> dict:
     data_preview: dict[str, object] = {}
     if stage == "parse":
         data_preview = {
-            "run_id": result.get("runId"),
+            "run_id": result.get("run_id"),
             "sample_count": len(result.get("samples", [])),
-            "summary_count": len(result.get("summaryData", [])),
+            "summary_count": len(result.get("summary_data", [])),
             "diagnostic_count": len(result.get("diagnostics", [])),
         }
     elif stage == "analyze_event_records":
@@ -100,37 +101,37 @@ def _build_demo_payload(stage: str, state: GraphState, result: dict) -> dict:
             None,
         )
         data_preview = {
-            "event_count": len(result.get("eventIds", [])),
-            "finding_count": len(result.get("findingIds", [])),
+            "event_count": len(result.get("event_ids", [])),
+            "finding_count": len(result.get("finding_ids", [])),
             "event_example": event_node["payload"] if event_node else None,
             "finding_example": finding_node["payload"] if finding_node else None,
         }
     elif stage == "prioritize":
-        top_finding = state["kg"].get(result.get("topFindingId") or "")
+        top_finding = state["kg"].get(result.get("top_finding_id") or "")
         data_preview = {
-            "top_severity": result.get("topSeverity"),
-            "top_finding_id": result.get("topFindingId"),
-            "priority_count": len(result.get("priorityIds", [])),
+            "top_severity": result.get("top_severity"),
+            "top_finding_id": result.get("top_finding_id"),
+            "priority_count": len(result.get("priority_ids", [])),
             "top_finding": top_finding["payload"] if top_finding else None,
         }
     elif stage == "augment":
         rec_texts = [
             state["kg"][rec_id]["payload"]["text"]
-            for rec_id in result.get("recommendationIds", [])
+            for rec_id in result.get("recommendation_ids", [])
             if rec_id in state["kg"]
         ]
         data_preview = {
-            "augmentation_ids": result.get("augmentationIds", []),
-            "recommendation_ids": result.get("recommendationIds", []),
+            "augmentation_ids": result.get("augmentation_ids", []),
+            "recommendation_ids": result.get("recommendation_ids", []),
             "recommendation_texts": rec_texts,
         }
     elif stage == "synthesize":
-        report_id = result.get("reportId")
+        report_id = result.get("report_id")
         report_node = result.get("kg", {}).get(report_id) if report_id else None
         data_preview = {
             "report_id": report_id,
             "summary": report_node["payload"]["summary"] if report_node else None,
-            "llm_error": result.get("llmError") or state.get("llmError"),
+            "llm_error": result.get("llm_error") or state.get("llm_error"),
         }
 
     return {
@@ -155,7 +156,7 @@ def with_demo(
     async def wrapper(state: GraphState) -> dict:
         result = await fn(state)
         logger.info("Stage complete: %s", stage)
-        controller = state.get("demoController")
+        controller = state.get("demo_controller")
         if controller is not None:
             controller.on_stage(_build_demo_payload(stage, state, result))
             controller.wait_for_continue()
@@ -177,7 +178,7 @@ def with_demo(
 def route_after_prioritize(state: GraphState) -> str:
     return (
         "augment"
-        if state["topSeverity"] >= state["severityThreshold"]
+        if state["top_severity"] >= state["severity_threshold"]
         else "synthesize"
     )
 

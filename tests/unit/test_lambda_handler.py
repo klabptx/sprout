@@ -41,7 +41,7 @@ def test_missing_stream_id_returns_400():
 # ------------------------------------------------------------------ #
 
 _MOCK_RESULT = {
-    "reportId": "rpt_0001",
+    "report_id": "rpt_0001",
     "kg": {
         "rpt_0001": {
             "node_type": "Report",
@@ -198,7 +198,7 @@ def test_handler_no_report(mock_build, monkeypatch):
     )
 
     mock_compiled = MagicMock()
-    mock_compiled.ainvoke = AsyncMock(return_value={"reportId": "", "kg": {}})
+    mock_compiled.ainvoke = AsyncMock(return_value={"report_id": "", "kg": {}})
     mock_build.return_value = mock_compiled
 
     from sprout.lambda_handler import handler

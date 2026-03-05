@@ -57,7 +57,7 @@ def handler(event: dict, context: object) -> dict:
         return _response(500, f"Internal error: {type(exc).__name__}")
 
     # Extract report text (mirrors cli.py logic).
-    report_id = result.get("reportId")
+    report_id = result.get("report_id")
     report_node = result.get("kg", {}).get(report_id) if report_id else None
     if report_node:
         report_text = report_node["payload"]["summary"]

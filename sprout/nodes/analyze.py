@@ -29,13 +29,13 @@ async def analyze_event_records(state: GraphState) -> dict:
 
     Generates Event and Finding KG nodes for anomalous records.
     """
-    summaries = state.get("summaryData", [])
-    event_details = state.get("eventDetails", [])
+    summaries = state.get("summary_data", [])
+    event_details = state.get("event_details", [])
     diagnostics = state.get("diagnostics", [])
 
     if not summaries or not event_details:
         logger.info("Analyze: no summary or event_details — skipping")
-        return {"eventIds": [], "findingIds": [], "kg": {}}
+        return {"event_ids": [], "finding_ids": [], "kg": {}}
 
     summary_row = summaries[0]
     application_id = summary_row.get("applicationId")
@@ -47,7 +47,7 @@ async def analyze_event_records(state: GraphState) -> dict:
 
     if not application_id or not summary_metrics:
         logger.warning("Analyze: missing applicationId or summary metrics — skipping")
-        return {"eventIds": [], "findingIds": [], "kg": {}}
+        return {"event_ids": [], "finding_ids": [], "kg": {}}
 
     s = get_settings()
 
@@ -60,16 +60,16 @@ async def analyze_event_records(state: GraphState) -> dict:
                 info.get("count", 1) if isinstance(info, dict) else 1
             )
 
-    excluded_metrics: set[str] = set(state.get("excludeMetrics") or [])
+    excluded_metrics: set[str] = set(state.get("exclude_metrics") or [])
     summary_metrics = {
         k: v for k, v in summary_metrics.items() if k not in excluded_metrics
     }
 
     if not summary_metrics:
         logger.info("Analyze: all summary metrics excluded — skipping")
-        return {"eventIds": [], "findingIds": [], "kg": {}}
+        return {"event_ids": [], "finding_ids": [], "kg": {}}
 
-    excluded_codes: set[int] = set(state.get("excludeEventCodes") or [])
+    excluded_codes: set[int] = set(state.get("exclude_event_codes") or [])
     grouped: dict[str, list[dict]] = defaultdict(list)
     for event in event_details:
         code = event.get("eventCode")
@@ -139,7 +139,7 @@ async def analyze_event_records(state: GraphState) -> dict:
 
     if not results:
         logger.info("Analyze: no anomalies or still-active events found")
-        return {"eventIds": [], "findingIds": [], "kg": {}}
+        return {"event_ids": [], "finding_ids": [], "kg": {}}
 
     results.sort(key=lambda r: r[0], reverse=True)
     top_results = results[: s.compare_max_events]
@@ -202,11 +202,11 @@ async def analyze_event_records(state: GraphState) -> dict:
                 f"still active with no end record — event has not resolved."
             )
 
-        event_id = new_id("evt", state["runId"])
+        event_id = new_id("evt", state["run_id"])
         event_ids.append(event_id)
         event_payload: EventPayload = {
             "event_id": event_id,
-            "run_id": state["runId"],
+            "run_id": state["run_id"],
             "event_code": int(code),
             "application_id": application_id,
             "start_record": start_record,
@@ -259,12 +259,12 @@ async def analyze_event_records(state: GraphState) -> dict:
     event_to_findings: dict[str, list[str]] = defaultdict(list)
 
     for f in raw_findings:
-        finding_id = new_id("find", state["runId"])
+        finding_id = new_id("find", state["run_id"])
         finding_ids.append(finding_id)
 
         finding_payload: FindingPayload = {
             "finding_id": finding_id,
-            "run_id": state["runId"],
+            "run_id": state["run_id"],
             "application_id": f["application_id"],
             "application_type": f["application_type"],
             "application_name": f["application_name"],
@@ -296,4 +296,4 @@ async def analyze_event_records(state: GraphState) -> dict:
         len(event_ids),
         len(finding_ids),
     )
-    return {"eventIds": event_ids, "findingIds": finding_ids, "kg": kg_updates}
+    return {"event_ids": event_ids, "finding_ids": finding_ids, "kg": kg_updates}

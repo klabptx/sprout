@@ -35,7 +35,7 @@ def main() -> None:
 
     state_overrides: dict = {"demo": args.demo}
     if args.llm_backend:
-        state_overrides["llmBackend"] = args.llm_backend
+        state_overrides["llm_backend"] = args.llm_backend
 
     graph = build_graph()
     try:
@@ -44,10 +44,10 @@ def main() -> None:
         print(f"Pipeline error: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    report_id = result.get("reportId")
+    report_id = result.get("report_id")
     report_node = result.get("kg", {}).get(report_id) if report_id else None
 
-    source_file = result.get("sourceFile", "") or result.get("runId", "")
+    source_file = result.get("source_file", "") or result.get("run_id", "")
     print(
         f"=== Sprout Report: {source_file} ==="
         if source_file
@@ -60,13 +60,13 @@ def main() -> None:
 
     print()
     print("Artifacts created:")
-    print(f"- Run: {result.get('runId', 'n/a')}")
-    print(f"- Events: {len(result.get('eventIds', []))}")
-    print(f"- Findings: {len(result.get('findingIds', []))}")
-    print(f"- Priorities: {len(result.get('priorityIds', []))}")
-    print(f"- Recommendations: {len(result.get('recommendationIds', []))}")
-    print(f"- Report: {result.get('reportId', 'n/a')}")
-    print(f"- Model: {result.get('llmModel', 'n/a')}")
+    print(f"- Run: {result.get('run_id', 'n/a')}")
+    print(f"- Events: {len(result.get('event_ids', []))}")
+    print(f"- Findings: {len(result.get('finding_ids', []))}")
+    print(f"- Priorities: {len(result.get('priority_ids', []))}")
+    print(f"- Recommendations: {len(result.get('recommendation_ids', []))}")
+    print(f"- Report: {result.get('report_id', 'n/a')}")
+    print(f"- Model: {result.get('llm_model', 'n/a')}")
 
 
 if __name__ == "__main__":

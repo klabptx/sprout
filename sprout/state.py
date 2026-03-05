@@ -25,32 +25,32 @@ def merge_dict(
 
 class GraphState(TypedDict):
     samples: list[Sample]
-    runId: str
-    summaryData: list[dict]
+    run_id: str
+    summary_data: list[dict]
     diagnostics: list[dict]
-    eventDetails: list[dict]
+    event_details: list[dict]
     kg: Annotated[KG, merge_dict]
-    segmentIds: Annotated[list[str], concat]
-    featureIds: Annotated[list[str], concat]
-    eventIds: Annotated[list[str], concat]
-    findingIds: Annotated[list[str], concat]
-    priorityIds: Annotated[list[str], concat]
-    augmentationIds: Annotated[list[str], concat]
-    recommendationIds: Annotated[list[str], concat]
-    reportId: str
-    sourceFile: str
-    topSeverity: float
-    topFindingId: str | None
-    dataQualityFlag: bool
-    excludeEventCodes: list[int]
-    excludeMetrics: list[str]
-    severityThreshold: float
+    segment_ids: Annotated[list[str], concat]
+    feature_ids: Annotated[list[str], concat]
+    event_ids: Annotated[list[str], concat]
+    finding_ids: Annotated[list[str], concat]
+    priority_ids: Annotated[list[str], concat]
+    augmentation_ids: Annotated[list[str], concat]
+    recommendation_ids: Annotated[list[str], concat]
+    report_id: str
+    source_file: str
+    top_severity: float
+    top_finding_id: str | None
+    data_quality_flag: bool
+    exclude_event_codes: list[int]
+    exclude_metrics: list[str]
+    severity_threshold: float
     demo: bool
-    demoController: "DemoController | None"
-    synthesizeMaxFindings: int
-    llmBackend: str
-    llmModel: str
-    llmError: str | None
+    demo_controller: DemoController | None
+    synthesize_max_findings: int
+    llm_backend: str
+    llm_model: str
+    llm_error: str | None
 
 
 class DemoController(Protocol):
@@ -97,30 +97,30 @@ def default_state() -> GraphState:
     s = get_settings()
     return {
         "samples": [],
-        "runId": "",
-        "summaryData": [],
+        "run_id": "",
+        "summary_data": [],
         "diagnostics": [],
-        "eventDetails": [],
+        "event_details": [],
         "kg": {},
-        "segmentIds": [],
-        "featureIds": [],
-        "eventIds": [],
-        "findingIds": [],
-        "priorityIds": [],
-        "augmentationIds": [],
-        "recommendationIds": [],
-        "reportId": "",
-        "sourceFile": "",
-        "topSeverity": 0.0,
-        "topFindingId": None,
-        "dataQualityFlag": False,
-        "excludeEventCodes": s.excluded_event_codes(),
-        "excludeMetrics": s.excluded_metrics(),
-        "severityThreshold": s.severity_threshold,
+        "segment_ids": [],
+        "feature_ids": [],
+        "event_ids": [],
+        "finding_ids": [],
+        "priority_ids": [],
+        "augmentation_ids": [],
+        "recommendation_ids": [],
+        "report_id": "",
+        "source_file": "",
+        "top_severity": 0.0,
+        "top_finding_id": None,
+        "data_quality_flag": False,
+        "exclude_event_codes": s.excluded_event_codes(),
+        "exclude_metrics": s.excluded_metrics(),
+        "severity_threshold": s.severity_threshold,
         "demo": False,
-        "demoController": None,
-        "synthesizeMaxFindings": -1,
-        "llmBackend": s.llm_backend,
-        "llmModel": "",
-        "llmError": None,
+        "demo_controller": None,
+        "synthesize_max_findings": -1,
+        "llm_backend": s.llm_backend,
+        "llm_model": "",
+        "llm_error": None,
     }

@@ -17,12 +17,12 @@ async def prioritize(state: GraphState) -> dict:
     top_finding_id: str | None = None
     kg_updates: KG = {}
 
-    for finding_id in state["findingIds"]:
+    for finding_id in state["finding_ids"]:
         finding_node = state["kg"].get(finding_id)
         if not finding_node:
             continue
         score = round(float(finding_node["payload"]["severity"]), 2)
-        priority_id = new_id("prio", state["runId"])
+        priority_id = new_id("prio", state["run_id"])
         priority_payload: PriorityPayload = {
             "priority_id": priority_id,
             "finding_id": finding_id,
@@ -52,8 +52,8 @@ async def prioritize(state: GraphState) -> dict:
         top_severity,
     )
     return {
-        "priorityIds": priority_ids,
-        "topSeverity": top_severity,
-        "topFindingId": top_finding_id,
+        "priority_ids": priority_ids,
+        "top_severity": top_severity,
+        "top_finding_id": top_finding_id,
         "kg": kg_updates,
     }

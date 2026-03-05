@@ -127,11 +127,11 @@ async def parse(_: GraphState) -> dict:
     kg: KG = {run_node["node_id"]: run_node}
     return {
         "samples": samples,
-        "runId": run_id,
-        "sourceFile": source_file,
-        "summaryData": [summary_row],
+        "run_id": run_id,
+        "source_file": source_file,
+        "summary_data": [summary_row],
         "diagnostics": diagnostics,
-        "eventDetails": event_details,
+        "event_details": event_details,
         "kg": kg,
-        "dataQualityFlag": not bool(summary_metrics),
+        "data_quality_flag": not bool(summary_metrics),
     }

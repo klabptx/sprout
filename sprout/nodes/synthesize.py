@@ -87,14 +87,14 @@ async def synthesize(state: GraphState) -> dict:
 
     # Collect all findings, sorted by severity descending.
     finding_nodes: list[NodeEnvelope] = []
-    for finding_id in state["findingIds"]:
+    for finding_id in state["finding_ids"]:
         node = state["kg"].get(finding_id)
         if node:
             finding_nodes.append(node)
     finding_nodes.sort(key=lambda n: n["payload"]["severity"], reverse=True)
 
     # Slice to top-N if configured (default -1 means all).
-    max_findings = state.get("synthesizeMaxFindings", -1)
+    max_findings = state.get("synthesize_max_findings", -1)
     if max_findings > 0:
         finding_nodes = finding_nodes[:max_findings]
 
@@ -112,23 +112,23 @@ async def synthesize(state: GraphState) -> dict:
 
     recommendation_texts = [
         state["kg"][rec_id]["payload"]["text"]
-        for rec_id in state.get("recommendationIds", [])
+        for rec_id in state.get("recommendation_ids", [])
         if rec_id in state["kg"]
     ]
 
     confidence = compute_confidence(
-        state["dataQualityFlag"],
-        state["topSeverity"],
-        state["severityThreshold"],
+        state["data_quality_flag"],
+        state["top_severity"],
+        state["severity_threshold"],
     )
 
     prompt = _build_llm_prompt(
         finding_nodes,
         event_summaries,
         recommendation_texts,
-        run_id=state.get("sourceFile", ""),
+        run_id=state.get("source_file", ""),
     )
-    backend = state.get("llmBackend", "auto")
+    backend = state.get("llm_backend", "auto")
     logger.info("Synthesize: invoking LLM backend=%s", backend)
     llm_summary, llm_error, llm_model = await generate_llm_summary(prompt, backend)
 
@@ -177,17 +177,17 @@ async def synthesize(state: GraphState) -> dict:
         (llm_text + "\n\n" + operational_sentence) if operational_sentence else llm_text
     )
 
-    report_id = new_id("rpt", state["runId"])
+    report_id = new_id("rpt", state["run_id"])
     report_payload: ReportPayload = {
         "report_id": report_id,
-        "run_id": state["runId"],
+        "run_id": state["run_id"],
         "summary": combined,
         "operational_summary": operational_sentence,
-        "severity": state["topSeverity"],
+        "severity": state["top_severity"],
         "confidence": confidence,
-        "finding_refs": state["findingIds"],
-        "priority_refs": state["priorityIds"],
-        "recommendation_refs": state["recommendationIds"],
+        "finding_refs": state["finding_ids"],
+        "priority_refs": state["priority_ids"],
+        "recommendation_refs": state["recommendation_ids"],
     }
     report_node: NodeEnvelope = {
         "node_id": report_id,
@@ -198,13 +198,13 @@ async def synthesize(state: GraphState) -> dict:
 
     kg_updates: KG = {report_id: report_node}
 
-    for f_id in state["findingIds"]:
+    for f_id in state["finding_ids"]:
         finding_node = dict(state["kg"][f_id])
         finding_node["edges"] = list(finding_node.get("edges", [])) + [
             {"type": "FINDING_INFORMS_REPORT", "to": report_id}
         ]
         kg_updates[f_id] = finding_node
-    for p_id in state["priorityIds"]:
+    for p_id in state["priority_ids"]:
         prio_node = dict(state["kg"][p_id])
         prio_node["edges"] = list(prio_node.get("edges", [])) + [
             {"type": "PRIORITY_INFORMS_REPORT", "to": report_id}
@@ -212,8 +212,8 @@ async def synthesize(state: GraphState) -> dict:
         kg_updates[p_id] = prio_node
 
     return {
-        "reportId": report_id,
+        "report_id": report_id,
         "kg": kg_updates,
-        "llmModel": llm_model,
-        "llmError": llm_error,
+        "llm_model": llm_model,
+        "llm_error": llm_error,
     }
