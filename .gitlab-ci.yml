@@ -17,7 +17,7 @@ lint:
     - ruff check sprout/ tests/
     - ruff format --check sprout/ tests/
   rules:
-    - if: $CI_MERGE_REQUEST_ID
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 test:
@@ -27,5 +27,5 @@ test:
     - pip install -e ".[openai,dev]"
     - pytest tests/
   rules:
-    - if: $CI_MERGE_REQUEST_ID
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
