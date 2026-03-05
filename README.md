@@ -262,6 +262,64 @@ Override the proto file location:
 export EVENT_PROTO_PATH=/path/to/SystemLog.proto   # default: SystemLog.proto
 ```
 
+## Lambda Deployment
+
+Sprout can run as a Dockerized AWS Lambda behind a Function URL. The Lambda
+receives `org_code` and `stream_id` as request parameters, constructs the
+Stitch API base URL from a template, runs the full pipeline, and returns the
+report as plain text.
+
+**Request formats:**
+
+```
+GET  https://<fn-url>/?org_code=ACME&stream_id=stream-123
+POST {"org_code": "ACME", "stream_id": "stream-123"}
+```
+
+**Build and test the Docker image locally:**
+
+```bash
+docker build -t sprout-lambda .
+
+docker run --rm -p 9000:8080 \
+  -e STITCH_URL_TEMPLATE="http://host.docker.internal:8888" \
+  -e OPENAI_API_KEY="sk-..." \
+  sprout-lambda
+
+curl -s "http://localhost:9000/2015-03-31/functions/function/invocations" \
+  -d '{"queryStringParameters": {"org_code": "test", "stream_id": "s1"}}'
+```
+
+**Lambda environment variables:**
+
+| Variable | Required | Example |
+|---|---|---|
+| `STITCH_URL_TEMPLATE` | Yes | `https://stitch.prod.example.com/{org_code}/{stream_id}` |
+| `OPENAI_API_KEY` | Yes | `sk-...` (via Secrets Manager) |
+| `LLM_BACKEND` | No | `openai` (default) |
+| `COMPARE_MAX_EVENTS` | No | `100` (reduce from 200 to save time) |
+
+The Lambda resource, IAM role, and Function URL are managed in the monorepo's
+infrastructure-as-code. This repo only owns the application code and Docker image.
+
+## CI/CD
+
+CI/CD is managed via GitLab CI (`.gitlab-ci.yml`), which includes the shared
+`DevOps/pipeline_templates` Panorama template for Docker builds and ECR publishing.
+
+**Stages:**
+
+| Stage | Jobs | Trigger |
+|---|---|---|
+| `check` | `lint`, `test` | MRs and pushes to default branch |
+| `package` | Dockerfile build, Docker manifest, container scan | All pipelines (from template) |
+| `release` | Release notes, tag, push to GitLab registry, push to ECR | Manual trigger on default branch (from template) |
+
+The template automatically handles AWS credentials, builds the Dockerfile, scans
+the image, and pushes to both dev and prod ECR registries on release. Lint (`ruff`)
+and test (`pytest`) jobs are defined locally and run in the `check` stage before
+the template's packaging jobs.
+
 ## Generate diagrams / exports
 
 > **Note:** diagram and KG export scripts are not yet migrated to the `sprout` package.
@@ -277,6 +335,10 @@ export EVENT_PROTO_PATH=/path/to/SystemLog.proto   # default: SystemLog.proto
 - `sprout/nodes/`: Individual pipeline node implementations (`parse`, `analyze`, `prioritize`, `augment`, `synthesize`).
 - `sprout/kg/utils.py`: Anomaly detection, finding-accumulation, and proto event-code parsing logic.
 - `sprout/kg/structured_summary.py`: Fetches per-application metrics from Stitch and builds the operational LLM prompt.
+- `sprout/lambda_handler.py`: AWS Lambda Function URL entry point. Extracts `org_code`/`stream_id`, builds Stitch URL, runs pipeline.
+- `sprout/event_code_apps.json`: Maps application types to their associated event codes for finding grouping.
+- `Dockerfile`: Docker image for AWS Lambda deployment (Python 3.11 base).
+- `.gitlab-ci.yml`: GitLab CI config with lint/test jobs and shared Panorama template for Docker build and ECR push.
 - `scripts/compare_event_records.py`: Standalone script that runs record-level metric comparison and outputs JSON with `events` and `findings`.
 - `scripts/run_compare.sh`: Runs Stitch + compare for a single `.2020` file or a directory of them.
 - `scripts/run_demo_pipeline.py`: Runs the full LangGraph pipeline once and outputs a JSON record to stdout.
@@ -285,13 +347,9 @@ export EVENT_PROTO_PATH=/path/to/SystemLog.proto   # default: SystemLog.proto
 
 ## Notes
 
-- All data is fetched directly from Stitch `/local/*` endpoints.
-- The segmentation and time-series components still exist, but are not wired into
-  the main DAG flow yet.
 - Events carry per-record anomalous metric comparisons; Findings aggregate those
   metrics by application type with a diagnosis prompt.
 - Metric-to-application-type mapping is fetched from Stitch at runtime
   (`/local/applications` and `/local/metrics/{app_id}`).
-- The augment/RAG step is wired into the pipeline via conditional edge as it is currently a stubbed placeholder. It can
-  be re-enabled by adding conditional edges back in `build_graph()`.
+- The augment/RAG step is wired into the pipeline via conditional edge as it is currently a stubbed placeholder. 
 - GIS fields exist but are null to keep the artifact shape future-ready.
