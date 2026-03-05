@@ -1,8 +1,8 @@
 """Parse node: fetch application data and events from Stitch, build the Run KG node."""
+
 from __future__ import annotations
 
 import logging
-from collections import defaultdict
 from typing import Any
 
 from sprout.config import get_settings
@@ -36,7 +36,9 @@ def _select_default_app(apps: list[dict]) -> dict[str, Any]:
         return {"application_id": "local-app", "name": "local", "type": "local"}
     app = next((a for a in apps if a.get("default") is True), apps[0])
     app_type = app.get("type", {})
-    type_key = app_type.get("key", "unknown") if isinstance(app_type, dict) else "unknown"
+    type_key = (
+        app_type.get("key", "unknown") if isinstance(app_type, dict) else "unknown"
+    )
     return {
         "application_id": app.get("application_id", "local-app"),
         "name": app.get("name", "local"),
@@ -69,15 +71,17 @@ def _normalize_events(events: list[dict]) -> list[dict]:
         start_record = event.get("start_record") or event.get("startRecord")
         if code is None or start_record is None:
             continue
-        details.append({
-            "eventCode": int(code),
-            "start_record": int(start_record),
-            "end_record": event.get("end_record") or event.get("endRecord"),
-            "start_time": event.get("start_time") or event.get("startTime"),
-            "end_time": event.get("end_time") or event.get("endTime"),
-            "location": event.get("location"),
-            "modules": event.get("modules"),
-        })
+        details.append(
+            {
+                "eventCode": int(code),
+                "start_record": int(start_record),
+                "end_record": event.get("end_record") or event.get("endRecord"),
+                "start_time": event.get("start_time") or event.get("startTime"),
+                "end_time": event.get("end_time") or event.get("endTime"),
+                "location": event.get("location"),
+                "modules": event.get("modules"),
+            }
+        )
     return details
 
 

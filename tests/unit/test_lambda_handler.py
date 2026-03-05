@@ -1,4 +1,5 @@
 """Unit tests for the AWS Lambda handler."""
+
 from __future__ import annotations
 
 import base64
@@ -53,7 +54,9 @@ _MOCK_RESULT = {
 
 @patch("sprout.lambda_handler.build_graph")
 def test_handler_returns_report(mock_build, monkeypatch):
-    monkeypatch.setenv("STITCH_URL_TEMPLATE", "https://stitch.test/{org_code}/{stream_id}")
+    monkeypatch.setenv(
+        "STITCH_URL_TEMPLATE", "https://stitch.test/{org_code}/{stream_id}"
+    )
 
     mock_compiled = MagicMock()
     mock_compiled.ainvoke = AsyncMock(return_value=_MOCK_RESULT)
@@ -71,7 +74,9 @@ def test_handler_returns_report(mock_build, monkeypatch):
 
 @patch("sprout.lambda_handler.build_graph")
 def test_handler_sets_stitch_url(mock_build, monkeypatch):
-    monkeypatch.setenv("STITCH_URL_TEMPLATE", "https://stitch.test/{org_code}/{stream_id}")
+    monkeypatch.setenv(
+        "STITCH_URL_TEMPLATE", "https://stitch.test/{org_code}/{stream_id}"
+    )
 
     mock_compiled = MagicMock()
     mock_compiled.ainvoke = AsyncMock(return_value=_MOCK_RESULT)
@@ -94,7 +99,9 @@ def test_handler_sets_stitch_url(mock_build, monkeypatch):
 
 @patch("sprout.lambda_handler.build_graph")
 def test_handler_accepts_json_body(mock_build, monkeypatch):
-    monkeypatch.setenv("STITCH_URL_TEMPLATE", "https://stitch.test/{org_code}/{stream_id}")
+    monkeypatch.setenv(
+        "STITCH_URL_TEMPLATE", "https://stitch.test/{org_code}/{stream_id}"
+    )
 
     mock_compiled = MagicMock()
     mock_compiled.ainvoke = AsyncMock(return_value=_MOCK_RESULT)
@@ -115,7 +122,9 @@ def test_handler_accepts_json_body(mock_build, monkeypatch):
 
 @patch("sprout.lambda_handler.build_graph")
 def test_handler_accepts_base64_body(mock_build, monkeypatch):
-    monkeypatch.setenv("STITCH_URL_TEMPLATE", "https://stitch.test/{org_code}/{stream_id}")
+    monkeypatch.setenv(
+        "STITCH_URL_TEMPLATE", "https://stitch.test/{org_code}/{stream_id}"
+    )
 
     mock_compiled = MagicMock()
     mock_compiled.ainvoke = AsyncMock(return_value=_MOCK_RESULT)
@@ -137,7 +146,9 @@ def test_handler_accepts_base64_body(mock_build, monkeypatch):
 
 @patch("sprout.lambda_handler.build_graph")
 def test_pipeline_error_returns_500(mock_build, monkeypatch):
-    monkeypatch.setenv("STITCH_URL_TEMPLATE", "https://stitch.test/{org_code}/{stream_id}")
+    monkeypatch.setenv(
+        "STITCH_URL_TEMPLATE", "https://stitch.test/{org_code}/{stream_id}"
+    )
 
     from sprout.exceptions import SproutError
 
@@ -157,7 +168,9 @@ def test_pipeline_error_returns_500(mock_build, monkeypatch):
 
 @patch("sprout.lambda_handler.build_graph")
 def test_unexpected_error_returns_500(mock_build, monkeypatch):
-    monkeypatch.setenv("STITCH_URL_TEMPLATE", "https://stitch.test/{org_code}/{stream_id}")
+    monkeypatch.setenv(
+        "STITCH_URL_TEMPLATE", "https://stitch.test/{org_code}/{stream_id}"
+    )
 
     mock_compiled = MagicMock()
     mock_compiled.ainvoke = AsyncMock(side_effect=RuntimeError("unexpected"))
@@ -180,7 +193,9 @@ def test_unexpected_error_returns_500(mock_build, monkeypatch):
 
 @patch("sprout.lambda_handler.build_graph")
 def test_handler_no_report(mock_build, monkeypatch):
-    monkeypatch.setenv("STITCH_URL_TEMPLATE", "https://stitch.test/{org_code}/{stream_id}")
+    monkeypatch.setenv(
+        "STITCH_URL_TEMPLATE", "https://stitch.test/{org_code}/{stream_id}"
+    )
 
     mock_compiled = MagicMock()
     mock_compiled.ainvoke = AsyncMock(return_value={"reportId": "", "kg": {}})

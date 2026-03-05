@@ -243,36 +243,11 @@ the LLM — it is a verbatim rendering of the per-application metrics returned
 by the Stitch `/local/applications` and `/local/metrics/{app_id}` endpoints,
 mirroring the output style of the C++ `SummaryWriter*` classes.
 
-The report output is available in the `ReportPayload` in three fields:
+The report output is available in the `ReportPayload` in two fields:
 
-- `summary` — the full combined text (findings LLM + operational sentence +
-  structured summary)
+- `summary` — the full combined text (findings LLM + operational sentence)
 - `operational_summary` — the LLM-generated operational sentence alone (empty
   string if no task detected or LLM failed)
-- `structured_summary` — the structured summary block alone (empty string if
-  Stitch was unavailable)
-
-Example output appended to the report:
-
-```
---- Structured Summary ---
-
-Harvest (Harvest Application)
-  Dry Yield bu/ac: 185.20
-  Grain Moisture %: 14.30
-  Wet Weight lbs/ac: 212.00
-  Acres: 150.00
-
-Seeding (Seed Application)
-  Population Avg: 32,450.00
-  Singulation %: 98.72
-  Skips %: 1.02
-
---- End Structured Summary ---
-```
-
-If Stitch is unreachable when the synthesize node runs, the structured summary
-is silently omitted and the report contains only the LLM output.
 
 ### Event code definitions
 
@@ -301,7 +276,7 @@ export EVENT_PROTO_PATH=/path/to/SystemLog.proto   # default: SystemLog.proto
 - `sprout/cli.py`: CLI entry point (`sprout` command). Prints the report and LLM model used.
 - `sprout/nodes/`: Individual pipeline node implementations (`parse`, `analyze`, `prioritize`, `augment`, `synthesize`).
 - `sprout/kg/utils.py`: Anomaly detection, finding-accumulation, and proto event-code parsing logic.
-- `sprout/kg/structured_summary.py`: Fetches per-application metrics from Stitch and formats them as human-readable text (appended to the report, not LLM-processed).
+- `sprout/kg/structured_summary.py`: Fetches per-application metrics from Stitch and builds the operational LLM prompt.
 - `scripts/compare_event_records.py`: Standalone script that runs record-level metric comparison and outputs JSON with `events` and `findings`.
 - `scripts/run_compare.sh`: Runs Stitch + compare for a single `.2020` file or a directory of them.
 - `scripts/run_demo_pipeline.py`: Runs the full LangGraph pipeline once and outputs a JSON record to stdout.
@@ -317,6 +292,6 @@ export EVENT_PROTO_PATH=/path/to/SystemLog.proto   # default: SystemLog.proto
   metrics by application type with a diagnosis prompt.
 - Metric-to-application-type mapping is fetched from Stitch at runtime
   (`/local/applications` and `/local/metrics/{app_id}`).
-- The augment/RAG step is defined but not wired into the current pipeline. It can
+- The augment/RAG step is wired into the pipeline via conditional edge as it is currently a stubbed placeholder. It can
   be re-enabled by adding conditional edges back in `build_graph()`.
 - GIS fields exist but are null to keep the artifact shape future-ready.

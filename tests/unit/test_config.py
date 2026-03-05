@@ -1,4 +1,5 @@
 """Tests for sprout.config.Settings."""
+
 from __future__ import annotations
 
 import pytest

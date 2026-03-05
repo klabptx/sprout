@@ -1,4 +1,5 @@
 """Prioritize node: score findings and attach Priority KG nodes."""
+
 from __future__ import annotations
 
 import logging

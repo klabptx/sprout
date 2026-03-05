@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Hit a running Stitch server and print event code counts."""
+
 from __future__ import annotations
 
 import os
@@ -20,8 +21,12 @@ def main() -> int:
         return 1
 
     payload = resp.json()
-    events = payload if isinstance(payload, list) else (
-        payload.get("items") or payload.get("events") or payload.get("data") or []
+    events = (
+        payload
+        if isinstance(payload, list)
+        else (
+            payload.get("items") or payload.get("events") or payload.get("data") or []
+        )
     )
 
     counts: Counter[str] = Counter()

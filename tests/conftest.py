@@ -1,4 +1,5 @@
 """Shared pytest fixtures for the Sprout test suite."""
+
 from __future__ import annotations
 
 import json

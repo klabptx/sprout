@@ -18,10 +18,12 @@ Tests can override settings by resetting the module-level singleton::
     monkeypatch.setenv("OPENAI_MODEL", "gpt-4o-mini")
     # next call to get_settings() will pick up the new env
 """
+
 from __future__ import annotations
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -48,8 +50,8 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------ #
     llm_backend: str = "openai"
     severity_threshold: float = 0.75
-    exclude_event_codes: str = ""
-    exclude_metrics: str = ""
+    exclude_event_codes: str = "100017"
+    exclude_metrics: str = "metrics.liquidtankgallonsremaining"
     event_proto_path: str = "SystemLog.proto"
     sample_rate_hz: int = 5
     compare_output_dir: str = "artifacts/compare_results"
@@ -82,7 +84,7 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------ #
     vllm_base_url: str | None = None
     vllm_model: str | None = None
-    vllm_api_key: str = "token-abc123"
+    vllm_api_key: str | None = None
 
     # ------------------------------------------------------------------ #
     # LLM — Lambda.ai

@@ -3,6 +3,7 @@
 Used by both the LangGraph pipeline (``sprout.graph``) and the batch CLI
 scripts (``scripts/compare_event_records.py``).
 """
+
 from __future__ import annotations
 
 import logging
@@ -53,31 +54,26 @@ def reset_stitch_session() -> None:
 
 def _stitch_base() -> str:
     from sprout.config import get_settings
+
     return get_settings().stitch_local_base_url.rstrip("/")
 
 
 def _compare_pct_threshold() -> float:
     from sprout.config import get_settings
+
     return get_settings().compare_pct_threshold
 
 
 def _compare_abs_threshold() -> float:
     from sprout.config import get_settings
+
     return get_settings().compare_abs_threshold
 
 
 def _compare_max_events() -> int:
     from sprout.config import get_settings
+
     return get_settings().compare_max_events
-
-
-# Keep module-level names for callers that imported them directly from utils.py.
-# These are evaluated at import time from the environment, matching the old behaviour.
-import os as _os
-STITCH_BASE: str = _os.getenv("STITCH_LOCAL_BASE_URL", "http://localhost:8888").rstrip("/")
-COMPARE_PCT_THRESHOLD: float = float(_os.getenv("COMPARE_PCT_THRESHOLD", "0.25"))
-COMPARE_ABS_THRESHOLD: float = float(_os.getenv("COMPARE_ABS_THRESHOLD", "0.0"))
-COMPARE_MAX_EVENTS: int = int(_os.getenv("COMPARE_MAX_EVENTS", "200"))
 
 
 def parse_excluded_event_codes(raw: str) -> list[int]:
@@ -192,13 +188,19 @@ def get_json(url: str, retries: int = 3, timeout: int = 30) -> Any:
             return resp.json()
         logger.warning(
             "Stitch %d %s (%d ms, attempt %d/%d)",
-            resp.status_code, url, elapsed_ms, attempt, retries,
+            resp.status_code,
+            url,
+            elapsed_ms,
+            attempt,
+            retries,
         )
         last_error = f"{resp.status_code} for {url}: {resp.text.strip()}"
         if resp.status_code in {500, 502, 503, 504} and attempt < retries:
             continue
         break
-    raise StitchAPIError(last_error or f"Request failed for {url}", url=url, attempts=retries)
+    raise StitchAPIError(
+        last_error or f"Request failed for {url}", url=url, attempts=retries
+    )
 
 
 def extract_metrics(payload: dict) -> dict[str, float]:
@@ -369,7 +371,7 @@ def compute_priority(
 
     if anomalies:
         co = len(anomalies)
-        co_score = co ** 2 * max(abs(a["pct_delta"]) for a in anomalies)
+        co_score = co**2 * max(abs(a["pct_delta"]) for a in anomalies)
     else:
         # Still-active events with no anomalies get a meaningful base score
         # so they surface prominently in the findings.
@@ -396,7 +398,6 @@ def compute_priority(
 # ---------------------------------------------------------------------------
 # Finding accumulation by application type
 # ---------------------------------------------------------------------------
-
 
 
 def build_findings_by_app_type(
@@ -457,7 +458,9 @@ def build_findings_by_app_type(
                     "metric_name": metric_key.removeprefix("metrics."),
                 }
             type_key = app_info["application_type"]
-            acc = _ensure_acc(type_key, app_info["application_id"], app_info["application_name"])
+            acc = _ensure_acc(
+                type_key, app_info["application_id"], app_info["application_name"]
+            )
             eid = evt["event_id"]
             acc["event_ids"].add(eid)
             acc["code_events"][str(evt["event_code"])].add(eid)

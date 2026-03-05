@@ -1,4 +1,5 @@
 """LangGraph pipeline: graph wiring, demo wrapper, and routing."""
+
 from __future__ import annotations
 
 import logging
@@ -41,7 +42,9 @@ class DemoController(Protocol):
 def _build_demo_payload(stage: str, state: GraphState, result: dict) -> dict:
     kg_updates = result.get("kg", {})
     nodes = list(kg_updates.values()) if isinstance(kg_updates, dict) else []
-    node_counts = Counter(node.get("node_type") for node in nodes if "node_type" in node)
+    node_counts = Counter(
+        node.get("node_type") for node in nodes if "node_type" in node
+    )
     edge_counts: Counter[str] = Counter()
     targets: set[str] = set()
     for node in nodes:
@@ -55,11 +58,15 @@ def _build_demo_payload(stage: str, state: GraphState, result: dict) -> dict:
         DEMO_STAGE_INFO.get(stage, "No stage summary available."),
     ]
     if node_counts:
-        lines.append(f"KG nodes created: {', '.join(f'{k} x{v}' for k, v in node_counts.items())}")
+        lines.append(
+            f"KG nodes created: {', '.join(f'{k} x{v}' for k, v in node_counts.items())}"
+        )
     else:
         lines.append("KG nodes created: none")
     if edge_counts:
-        lines.append(f"KG edges created: {', '.join(f'{k} x{v}' for k, v in edge_counts.items() if k)}")
+        lines.append(
+            f"KG edges created: {', '.join(f'{k} x{v}' for k, v in edge_counts.items() if k)}"
+        )
     else:
         lines.append("KG edges created: none")
     sample_targets = sorted(list(targets))[:6]
@@ -77,11 +84,19 @@ def _build_demo_payload(stage: str, state: GraphState, result: dict) -> dict:
         }
     elif stage == "analyze_event_records":
         event_node = next(
-            (n for n in (result.get("kg", {}) or {}).values() if n.get("node_type") == "Event"),
+            (
+                n
+                for n in (result.get("kg", {}) or {}).values()
+                if n.get("node_type") == "Event"
+            ),
             None,
         )
         finding_node = next(
-            (n for n in (result.get("kg", {}) or {}).values() if n.get("node_type") == "Finding"),
+            (
+                n
+                for n in (result.get("kg", {}) or {}).values()
+                if n.get("node_type") == "Finding"
+            ),
             None,
         )
         data_preview = {
@@ -160,13 +175,20 @@ def with_demo(
 
 
 def route_after_prioritize(state: GraphState) -> str:
-    return "augment" if state["topSeverity"] >= state["severityThreshold"] else "synthesize"
+    return (
+        "augment"
+        if state["topSeverity"] >= state["severityThreshold"]
+        else "synthesize"
+    )
 
 
 def build_graph() -> Callable[[GraphState], GraphState]:
     builder: StateGraph = StateGraph(GraphState)
     builder.add_node("parse", with_demo("parse", parse))
-    builder.add_node("analyze_event_records", with_demo("analyze_event_records", analyze_event_records))
+    builder.add_node(
+        "analyze_event_records",
+        with_demo("analyze_event_records", analyze_event_records),
+    )
     builder.add_node("prioritize", with_demo("prioritize", prioritize))
     builder.add_node("augment", with_demo("augment", augment))
     builder.add_node("synthesize", with_demo("synthesize", synthesize))

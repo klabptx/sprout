@@ -1,4 +1,5 @@
 """Domain-specific exception hierarchy for the Sprout pipeline."""
+
 from __future__ import annotations
 
 

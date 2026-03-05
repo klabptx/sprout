@@ -8,6 +8,7 @@ Optional:
     LLM_BACKEND         – openai | local | vllm | lambda | auto (default openai)
     SEVERITY_THRESHOLD   – float (default 0.25)
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -71,7 +72,10 @@ def main() -> int:
     if output.get("llm_error"):
         print(f"WARNING: LLM error: {output['llm_error']}", file=sys.stderr)
     if not output.get("llm_model") or output.get("llm_model") == "none":
-        print("WARNING: No LLM summary produced — report contains raw fallback text.", file=sys.stderr)
+        print(
+            "WARNING: No LLM summary produced — report contains raw fallback text.",
+            file=sys.stderr,
+        )
 
     json.dump(output, sys.stdout, default=str)
     print()  # trailing newline

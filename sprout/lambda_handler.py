@@ -5,6 +5,7 @@ Designed for use with a Lambda Function URL.  Accepts ``org_code`` and
 constructs the Stitch API base URL from a template, runs the full
 LangGraph pipeline, and returns the report as plain text.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -38,10 +39,8 @@ def handler(event: dict, context: object) -> dict:
     stitch_url = template.format(org_code=org_code, stream_id=stream_id)
     os.environ["STITCH_LOCAL_BASE_URL"] = stitch_url
 
-
     reset_settings()
     reset_stitch_session()
-
 
     configure_logging(verbose=False)
 

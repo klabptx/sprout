@@ -1,4 +1,5 @@
 """Augment node: attach mock RAG snippets as Recommendation KG nodes."""
+
 from __future__ import annotations
 
 import logging

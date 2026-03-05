@@ -7,6 +7,7 @@ fields (implement type, application type, field_task, etc.).
 Usage:
     STITCH_LOCAL_BASE_URL=http://localhost:8888 python scripts/dump_stitch_config.py
 """
+
 from __future__ import annotations
 
 import json
@@ -52,8 +53,17 @@ def search_for_task(obj: object, path: str = "$") -> list[str]:
     """Recursively search a JSON object for keys/values related to 'task'."""
     hits: list[str] = []
     task_keys = {"task", "field_task", "fieldtask", "task_index", "taskindex"}
-    task_values = {"plant", "harvest", "spray", "sidedress", "tillage",
-                   "planter", "combine", "sprayer", "plan"}
+    task_values = {
+        "plant",
+        "harvest",
+        "spray",
+        "sidedress",
+        "tillage",
+        "planter",
+        "combine",
+        "sprayer",
+        "plan",
+    }
 
     if isinstance(obj, dict):
         for k, v in obj.items():
@@ -97,8 +107,9 @@ def main() -> None:
 
     # --- 3. Per-application metrics (first app only, to keep output short) ---
     for app_id, app_name in app_ids[:2]:
-        payload = probe(base, f"/local/metrics/{app_id}",
-                        f"Metrics: {app_name} ({app_id})")
+        payload = probe(
+            base, f"/local/metrics/{app_id}", f"Metrics: {app_name} ({app_id})"
+        )
         if payload:
             hits = search_for_task(payload)
             all_hits.extend(hits)
@@ -116,8 +127,9 @@ def main() -> None:
 
     # Per-app summaries
     for app_id, app_name in app_ids[:2]:
-        payload = probe(base, f"/local/summary/{app_id}",
-                        f"Summary: {app_name} ({app_id})")
+        payload = probe(
+            base, f"/local/summary/{app_id}", f"Summary: {app_name} ({app_id})"
+        )
         if payload:
             hits = search_for_task(payload)
             all_hits.extend(hits)

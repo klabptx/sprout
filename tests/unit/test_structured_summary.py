@@ -1,11 +1,7 @@
 """Unit tests for sprout.kg.structured_summary."""
+
 from __future__ import annotations
 
-from unittest.mock import patch
-
-import pytest
-
-from sprout.exceptions import StitchAPIError
 from sprout.kg.structured_summary import (
     _detect_task,
     _extract_summary_metrics,
@@ -14,8 +10,6 @@ from sprout.kg.structured_summary import (
     _format_key,
     _pick_label,
     build_operational_prompt,
-    build_structured_summary,
-    format_structured_summary,
 )
 
 
@@ -140,162 +134,6 @@ def test_extract_summary_metrics_empty_payload():
 
 
 # --------------------------------------------------------------------------- #
-# format_structured_summary
-# --------------------------------------------------------------------------- #
-
-
-def test_format_empty_data():
-    assert format_structured_summary([]) == ""
-
-
-def test_format_single_app():
-    data = [
-        {
-            "application_name": "Harvest App",
-            "application_type_key": "harvest",
-            "application_type_name": "Harvest",
-            "raw_summary": {},
-            "metrics": [
-                {"key": "dry_yield_bu_per_ac", "name": "Dry Yield bu/ac", "value": 185.2},
-                {"key": "grain_moisture_pct", "name": "Grain Moisture %", "value": 14.3},
-            ],
-        }
-    ]
-    result = format_structured_summary(data)
-    assert "--- Structured Summary ---" in result
-    assert "--- End Structured Summary ---" in result
-    assert "Harvest (Harvest App)" in result
-    assert "Dry Yield bu/ac: 185.20" in result
-    assert "Grain Moisture %: 14.30" in result
-
-
-def test_format_skips_null_values():
-    data = [
-        {
-            "application_name": "Seed App",
-            "application_type_key": "seeding",
-            "application_type_name": "Seeding",
-            "raw_summary": {},
-            "metrics": [
-                {"key": "population_avg", "name": "Population Avg", "value": 32450.0},
-                {"key": "vacuum_in", "name": "Vacuum", "value": None},
-            ],
-        }
-    ]
-    result = format_structured_summary(data)
-    assert "Population Avg: 32,450.00" in result
-    assert "Vacuum" not in result
-
-
-def test_format_same_name_and_type_no_duplicate_header():
-    data = [
-        {
-            "application_name": "Harvest",
-            "application_type_key": "harvest",
-            "application_type_name": "Harvest",
-            "raw_summary": {},
-            "metrics": [
-                {"key": "acres", "name": "Acres", "value": 150.0},
-            ],
-        }
-    ]
-    result = format_structured_summary(data)
-    assert "Harvest (Harvest)" not in result
-    assert "Harvest\n" in result
-
-
-def test_format_multiple_apps():
-    data = [
-        {
-            "application_name": "Harvest App",
-            "application_type_key": "harvest",
-            "application_type_name": "Harvest",
-            "raw_summary": {},
-            "metrics": [
-                {"key": "yield", "name": "Yield", "value": 200.0},
-            ],
-        },
-        {
-            "application_name": "Seed App",
-            "application_type_key": "seeding",
-            "application_type_name": "Seeding",
-            "raw_summary": {},
-            "metrics": [
-                {"key": "population", "name": "Population", "value": 32000.0},
-            ],
-        },
-    ]
-    result = format_structured_summary(data)
-    assert "Harvest (Harvest App)" in result
-    assert "Seeding (Seed App)" in result
-    assert "Yield: 200.00" in result
-    assert "Population: 32,000.00" in result
-
-
-# --------------------------------------------------------------------------- #
-# build_structured_summary
-# --------------------------------------------------------------------------- #
-
-
-@patch("sprout.kg.structured_summary.load_applications")
-def test_build_handles_stitch_error(mock_load):
-    mock_load.side_effect = StitchAPIError("connection refused", url="http://localhost:8888")
-    result = build_structured_summary()
-    assert result == ""
-
-
-@patch("sprout.kg.structured_summary.load_applications")
-def test_build_handles_empty_applications(mock_load):
-    mock_load.return_value = []
-    result = build_structured_summary()
-    assert result == ""
-
-
-@patch("sprout.kg.structured_summary._fetch_raw_summary")
-@patch("sprout.kg.structured_summary.load_applications")
-def test_build_uses_summary_endpoint(mock_load_apps, mock_fetch_raw):
-    mock_load_apps.return_value = [
-        {
-            "application_id": "app1",
-            "name": "Seeding",
-            "type": {"key": "seeding", "name": "Seeding"},
-        }
-    ]
-    mock_fetch_raw.return_value = {
-        "implement_average": {
-            "singulation": {"label": "Singulation", "unit": "%", "value": 99.76},
-            "population": {"label": "Population", "unit": "seeds/ac", "value": 32788.0},
-        },
-        "name": "Seeding",
-    }
-    result = build_structured_summary()
-    assert "--- Structured Summary ---" in result
-    assert "Singulation (%): 99.76" in result
-    assert "Population (seeds/ac): 32,788.00" in result
-
-
-@patch("sprout.kg.structured_summary.load_application_metrics_with_values")
-@patch("sprout.kg.structured_summary._fetch_raw_summary")
-@patch("sprout.kg.structured_summary.load_applications")
-def test_build_falls_back_to_metrics(mock_load_apps, mock_fetch_raw, mock_load_metrics):
-    mock_load_apps.return_value = [
-        {
-            "application_id": "app1",
-            "name": "Test Harvest",
-            "type": {"key": "harvest", "name": "Harvest"},
-        }
-    ]
-    mock_fetch_raw.side_effect = StitchAPIError("400", url="http://localhost:8888")
-    mock_load_metrics.return_value = [
-        {"key": "yield", "name": "Yield", "value": 180.5, "raw_value": {"implement_average": 180.5}},
-    ]
-    result = build_structured_summary()
-    assert "--- Structured Summary ---" in result
-    assert "Harvest (Test Harvest)" in result
-    assert "Yield: 180.50" in result
-
-
-# --------------------------------------------------------------------------- #
 # _detect_task
 # --------------------------------------------------------------------------- #
 
@@ -340,10 +178,7 @@ def test_format_hybrids_two():
 
 
 def test_format_hybrids_many():
-    hybrids = [
-        {"name": {"label": "Hybrid", "value": f"H{i}"}}
-        for i in range(4)
-    ]
+    hybrids = [{"name": {"label": "Hybrid", "value": f"H{i}"}} for i in range(4)]
     assert _format_hybrids(hybrids) == "4 varieties"
 
 
@@ -385,7 +220,11 @@ def test_operational_prompt_plant():
                 ],
             },
             "metrics": [
-                {"key": "population", "name": "Population (seeds/ac)", "value": 34146.76},
+                {
+                    "key": "population",
+                    "name": "Population (seeds/ac)",
+                    "value": 34146.76,
+                },
                 {"key": "singulation", "name": "Singulation (%)", "value": 99.24},
             ],
         },
@@ -415,7 +254,11 @@ def test_operational_prompt_harvest():
             "raw_summary": {},
             "metrics": [
                 {"key": "moisture", "name": "Moisture (%)", "value": 20.56},
-                {"key": "dryyieldavg", "name": "Average Dry Yield (bu/ac)", "value": 223.0},
+                {
+                    "key": "dryyieldavg",
+                    "name": "Average Dry Yield (bu/ac)",
+                    "value": 223.0,
+                },
             ],
         },
     ]
@@ -476,7 +319,11 @@ def test_operational_prompt_plant_no_hybrids():
             "application_type_name": "Seeding",
             "raw_summary": {},
             "metrics": [
-                {"key": "population", "name": "Population (seeds/ac)", "value": 32000.0},
+                {
+                    "key": "population",
+                    "name": "Population (seeds/ac)",
+                    "value": 32000.0,
+                },
                 {"key": "singulation", "name": "Singulation (%)", "value": 98.5},
             ],
         },

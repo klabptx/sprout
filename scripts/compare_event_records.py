@@ -78,12 +78,14 @@ def main() -> int:
         start = evt.get("start_record") or evt.get("startRecord")
         if code is None or start is None:
             continue
-        event_details.append({
-            "eventCode": int(code),
-            "start_record": int(start),
-            "end_record": evt.get("end_record") or evt.get("endRecord"),
-            "location": evt.get("location"),
-        })
+        event_details.append(
+            {
+                "eventCode": int(code),
+                "start_record": int(start),
+                "end_record": evt.get("end_record") or evt.get("endRecord"),
+                "location": evt.get("location"),
+            }
+        )
         code_counts[str(int(code))] += 1
 
     grouped: dict[str, list[dict]] = defaultdict(list)
@@ -110,7 +112,9 @@ def main() -> int:
             try:
                 record_metrics = load_record_metrics(application_id, start_record)
             except Exception as exc:
-                print(f"Failed to load record metrics for event {code} @ {start_record}: {exc}")
+                print(
+                    f"Failed to load record metrics for event {code} @ {start_record}: {exc}"
+                )
                 continue
 
             anomalies = compare_metrics(summary_metrics, record_metrics)
@@ -145,30 +149,42 @@ def main() -> int:
 
     # Build event dicts with normalized severity
     events_out: list[dict[str, Any]] = []
-    for idx, (priority, code, start_record, end_record, anomalies) in enumerate(results):
+    for idx, (priority, code, start_record, end_record, anomalies) in enumerate(
+        results
+    ):
         severity = min(1.0, priority / max_priority)
         span = (
-            max(0, int(end_record) - int(start_record)) if end_record is not None else None
+            max(0, int(end_record) - int(start_record))
+            if end_record is not None
+            else None
         )
-        events_out.append({
-            "event_id": idx,
-            "event_code": int(code),
-            "eventCode": int(code),
-            "start_record": start_record,
-            "end_record": int(end_record) if end_record is not None else None,
-            "event_length": span,
-            "priority": priority,
-            "severity": round(severity, 4),
-            "anomalies": anomalies,
-        })
+        events_out.append(
+            {
+                "event_id": idx,
+                "event_code": int(code),
+                "eventCode": int(code),
+                "start_record": start_record,
+                "end_record": int(end_record) if end_record is not None else None,
+                "event_length": span,
+                "priority": priority,
+                "severity": round(severity, 4),
+                "anomalies": anomalies,
+            }
+        )
 
     for rank, evt in enumerate(events_out[:max_events], 1):
         print("")
-        span_note = f" len={evt['event_length']}" if evt["event_length"] is not None else ""
-        print(f"#{rank}  Event code {evt['event_code']} @ record {evt['start_record']}"
-              f"{span_note}  [priority={evt['priority']:.2f}]")
+        span_note = (
+            f" len={evt['event_length']}" if evt["event_length"] is not None else ""
+        )
+        print(
+            f"#{rank}  Event code {evt['event_code']} @ record {evt['start_record']}"
+            f"{span_note}  [priority={evt['priority']:.2f}]"
+        )
         print(f"  anomalous metrics: {len(evt['anomalies'])}")
-        for a in sorted(evt["anomalies"], key=lambda x: abs(x["pct_delta"]), reverse=True)[:6]:
+        for a in sorted(
+            evt["anomalies"], key=lambda x: abs(x["pct_delta"]), reverse=True
+        )[:6]:
             print(
                 f"    {a['metric']}: record={a['record']:.3f} "
                 f"summary={a['summary']:.3f} pct_delta={a['pct_delta']:.2%}"
@@ -187,16 +203,17 @@ def main() -> int:
         print("")
         print(f"Findings by application type ({len(findings)}):")
         for f in findings:
-            print(f"  {f['application_name']} ({f['application_type']}): "
-                  f"{f['event_count']} events, severity={f['severity']:.2f}")
+            print(
+                f"  {f['application_name']} ({f['application_type']}): "
+                f"{f['event_count']} events, severity={f['severity']:.2f}"
+            )
 
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
         path = os.path.join(output_dir, f"{output_prefix}.json")
         # Strip internal fields before serialization
         serializable_events = [
-            {k: v for k, v in e.items() if k not in ("event_id",)}
-            for e in events_out
+            {k: v for k, v in e.items() if k not in ("event_id",)} for e in events_out
         ]
         payload = {
             "applicationId": application_id,

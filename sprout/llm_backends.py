@@ -1,4 +1,5 @@
 """LLM backend dispatch: OpenAI, local HuggingFace/PEFT, vLLM, Lambda.ai."""
+
 from __future__ import annotations
 
 import asyncio
@@ -11,7 +12,9 @@ logger = logging.getLogger(__name__)
 _LOCAL_MODEL_CACHE: dict[str, object] = {}
 _LOCAL_LLM_ERROR: str | None = None
 
-_SYSTEM_PROMPT = "You write concise agronomy incident summaries. Your tone should be suggestive."
+_SYSTEM_PROMPT = (
+    "You write concise agronomy incident summaries. Your tone should be suggestive."
+)
 
 
 def _openai_summary(prompt: str) -> tuple[str | None, str]:
@@ -66,11 +69,15 @@ def _local_summary(prompt: str) -> str | None:
     else:
         if adapter_dir:
             if not base_model_id:
-                _LOCAL_LLM_ERROR = "LOCAL_BASE_MODEL is required when using LOCAL_ADAPTER_DIR."
+                _LOCAL_LLM_ERROR = (
+                    "LOCAL_BASE_MODEL is required when using LOCAL_ADAPTER_DIR."
+                )
                 return None
             try:
                 tokenizer = AutoTokenizer.from_pretrained(base_model_id)
-                base = AutoModelForCausalLM.from_pretrained(base_model_id, device_map="auto")
+                base = AutoModelForCausalLM.from_pretrained(
+                    base_model_id, device_map="auto"
+                )
                 model = PeftModel.from_pretrained(base, adapter_dir)
             except Exception as exc:
                 _LOCAL_LLM_ERROR = f"Failed to load base/adapter: {exc}"
@@ -78,7 +85,9 @@ def _local_summary(prompt: str) -> str | None:
         else:
             try:
                 tokenizer = AutoTokenizer.from_pretrained(model_id)
-                model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto")
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_id, device_map="auto"
+                )
             except Exception as exc:
                 _LOCAL_LLM_ERROR = f"Failed to load local model: {exc}"
                 return None
@@ -111,7 +120,9 @@ def _local_summary(prompt: str) -> str | None:
         return None
 
 
-def _lambda_summary(prompt: str, base_url: str = "https://api.lambda.ai/v1") -> str | None:
+def _lambda_summary(
+    prompt: str, base_url: str = "https://api.lambda.ai/v1"
+) -> str | None:
     s = get_settings()
     if not s.lambda_api_key:
         return None

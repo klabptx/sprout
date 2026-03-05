@@ -5,6 +5,7 @@ Usage:
     STITCH_LOCAL_BASE_URL=http://localhost:8888 python scripts/dump_stitch_metrics.py
     STITCH_LOCAL_BASE_URL=http://localhost:8888 python scripts/dump_stitch_metrics.py --summary
 """
+
 from __future__ import annotations
 
 import json
@@ -23,10 +24,10 @@ def dump_metrics() -> None:
         app_id = app.get("application_id", "")
         app_name = app.get("name", "")
         app_type = app.get("type", {})
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Application: {app_name}  (id={app_id})")
         print(f"Type: {json.dumps(app_type)}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         try:
             payload = get_json(f"{base}/local/metrics/{app_id}")
@@ -62,9 +63,9 @@ def dump_summary() -> None:
         pass
 
     for ep in endpoints:
-        print(f"\n{'='*60}", flush=True)
+        print(f"\n{'=' * 60}", flush=True)
         print(f"GET {ep}", flush=True)
-        print(f"{'='*60}", flush=True)
+        print(f"{'=' * 60}", flush=True)
         try:
             resp = requests.get(f"{base}{ep}", timeout=10)
             if not resp.ok:

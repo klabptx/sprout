@@ -1,4 +1,5 @@
 """CLI entry point for the Sprout pipeline."""
+
 from __future__ import annotations
 
 import argparse
@@ -12,7 +13,9 @@ from sprout.state import default_state
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the Sprout agronomic analysis pipeline.")
+    parser = argparse.ArgumentParser(
+        description="Run the Sprout agronomic analysis pipeline."
+    )
     parser.add_argument("--demo", action="store_true", help="Pause between DAG stages.")
     parser.add_argument(
         "--llm-backend",
@@ -20,7 +23,9 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="LLM backend to use for synthesis (overrides LLM_BACKEND env var).",
     )
-    parser.add_argument("--verbose", "-v", action="store_true", help="Enable DEBUG logging.")
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Enable DEBUG logging."
+    )
     return parser.parse_args()
 
 
@@ -34,9 +39,7 @@ def main() -> None:
 
     graph = build_graph()
     try:
-        result = asyncio.run(
-            graph.ainvoke({**default_state(), **state_overrides})
-        )
+        result = asyncio.run(graph.ainvoke({**default_state(), **state_overrides}))
     except SproutError as exc:
         print(f"Pipeline error: {exc}", file=sys.stderr)
         sys.exit(1)
@@ -45,7 +48,11 @@ def main() -> None:
     report_node = result.get("kg", {}).get(report_id) if report_id else None
 
     source_file = result.get("sourceFile", "") or result.get("runId", "")
-    print(f"=== Sprout Report: {source_file} ===" if source_file else "=== Sprout Report ===")
+    print(
+        f"=== Sprout Report: {source_file} ==="
+        if source_file
+        else "=== Sprout Report ==="
+    )
     if report_node:
         print(report_node["payload"]["summary"])
     else:

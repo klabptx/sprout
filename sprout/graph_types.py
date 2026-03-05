@@ -1,7 +1,7 @@
-"""TypedDict definitions for all knowledge-graph node payloads.
-
-Copied from src/demo/graph_types.py — this is the canonical location.
 """
+TypedDict definitions for all knowledge-graph node payloads.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Literal, TypedDict
@@ -25,9 +25,11 @@ EdgeType = Literal[
     "EVENT_SUPPORTS_FINDING",
     "FINDING_HAS_PRIORITY",
     "FINDING_HAS_RECOMMENDATION",
+    "FINDING_INFORMS_REPORT",
     "REPORT_SUMMARIZES",
     "NODE_HAS_TS_REF",
     "NODE_HAS_SPATIAL_REF",
+    "PRIORITY_INFORMS_REPORT",
 ]
 
 
@@ -88,7 +90,9 @@ class WindowFeaturePayload(TypedDict):
     # Single feature derived from a segment window.
     feature_id: str
     segment_id: str
-    name: Literal["downforce_p95", "downforce_std", "singulation_p05", "singulation_std"]
+    name: Literal[
+        "downforce_p95", "downforce_std", "singulation_p05", "singulation_std"
+    ]
     value: float
     units: str
 
@@ -154,7 +158,6 @@ class ReportPayload(TypedDict):
     report_id: str
     run_id: str
     summary: str
-    structured_summary: str
     operational_summary: str
     severity: float
     confidence: float

@@ -1,4 +1,5 @@
 """Logging configuration for the Sprout pipeline."""
+
 from __future__ import annotations
 
 import logging

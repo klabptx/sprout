@@ -1,4 +1,5 @@
 """Unit tests for sprout.kg.utils anomaly detection and priority scoring."""
+
 from __future__ import annotations
 
 from collections import Counter

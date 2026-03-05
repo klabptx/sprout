@@ -1,4 +1,5 @@
 """Analyze node: compare record-level metrics against summary averages."""
+
 from __future__ import annotations
 
 import asyncio
@@ -55,10 +56,14 @@ async def analyze_event_records(state: GraphState) -> dict:
     if diagnostics:
         codes_map = diagnostics[0].get("codes", {})
         for code_str, info in codes_map.items():
-            code_counts[code_str] = info.get("count", 1) if isinstance(info, dict) else 1
+            code_counts[code_str] = (
+                info.get("count", 1) if isinstance(info, dict) else 1
+            )
 
     excluded_metrics: set[str] = set(state.get("excludeMetrics") or [])
-    summary_metrics = {k: v for k, v in summary_metrics.items() if k not in excluded_metrics}
+    summary_metrics = {
+        k: v for k, v in summary_metrics.items() if k not in excluded_metrics
+    }
 
     if not summary_metrics:
         logger.info("Analyze: all summary metrics excluded — skipping")
@@ -84,7 +89,9 @@ async def analyze_event_records(state: GraphState) -> dict:
                 spatial_counts[cell] += 1
 
     # Fetch record-level metrics and compare against summary
-    results: list[tuple[float, str, int, int | None, list[dict[str, Any]], dict, bool]] = []
+    results: list[
+        tuple[float, str, int, int | None, list[dict[str, Any]], dict, bool]
+    ] = []
     for code, events in grouped.items():
         for event in events:
             start_record = int(event["start_record"])
@@ -112,10 +119,23 @@ async def analyze_event_records(state: GraphState) -> dict:
                 continue
 
             priority = compute_priority(
-                anomalies, event, code_counts.get(code, 1), spatial_counts,
+                anomalies,
+                event,
+                code_counts.get(code, 1),
+                spatial_counts,
                 still_active=still_active,
             )
-            results.append((priority, code, start_record, end_record, anomalies, event, still_active))
+            results.append(
+                (
+                    priority,
+                    code,
+                    start_record,
+                    end_record,
+                    anomalies,
+                    event,
+                    still_active,
+                )
+            )
 
     if not results:
         logger.info("Analyze: no anomalies or still-active events found")
@@ -130,14 +150,28 @@ async def analyze_event_records(state: GraphState) -> dict:
     kg_updates: KG = {}
     event_ids: list[str] = []
 
-    for priority, code, start_record, end_record, anomalies, event, still_active in top_results:
+    for (
+        priority,
+        code,
+        start_record,
+        end_record,
+        anomalies,
+        event,
+        still_active,
+    ) in top_results:
         severity = round(min(1.0, priority / max_priority), 2)
-        span = max(0, int(end_record) - start_record) if end_record is not None else None
+        span = (
+            max(0, int(end_record) - start_record) if end_record is not None else None
+        )
         ecd = event_code_defs.get(int(code))
-        code_label = f"{code} ({ecd['title']})" if ecd and ecd.get("title") else str(code)
+        code_label = (
+            f"{code} ({ecd['title']})" if ecd and ecd.get("title") else str(code)
+        )
 
         if anomalies:
-            top_anomalies = sorted(anomalies, key=lambda a: abs(a["pct_delta"]), reverse=True)
+            top_anomalies = sorted(
+                anomalies, key=lambda a: abs(a["pct_delta"]), reverse=True
+            )
             summary_parts = [
                 f"{a['metric']}={a['record']:.3f} (expected {a['summary']:.3f}, {a['pct_delta']:+.0%})"
                 for a in top_anomalies[:3]
@@ -214,7 +248,10 @@ async def analyze_event_records(state: GraphState) -> dict:
     ]
 
     raw_findings = build_findings_by_app_type(
-        common_events, metric_to_app, application_id, event_code_defs,
+        common_events,
+        metric_to_app,
+        application_id,
+        event_code_defs,
         code_to_app=code_to_app,
     )
 

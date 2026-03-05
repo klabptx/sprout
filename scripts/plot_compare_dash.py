@@ -13,11 +13,14 @@ import plotly.express as px
 
 INPUT_GLOB = os.getenv("COMPARE_RESULTS_GLOB", "artifacts/compare_results/*.json")
 PORT = int(os.getenv("COMPARE_DASH_PORT", "8050"))
-CACHE_PATH = os.getenv("COMPARE_DASH_CACHE_PATH", "artifacts/compare_results/cache.json")
+CACHE_PATH = os.getenv(
+    "COMPARE_DASH_CACHE_PATH", "artifacts/compare_results/cache.json"
+)
 USE_CACHE = os.getenv("COMPARE_DASH_USE_CACHE", "true").lower() in ("1", "true", "yes")
 MAX_ROWS = int(os.getenv("COMPARE_DASH_MAX_ROWS", "5000"))
 BATCH_JSONL_PATHS = [
-    p for p in [
+    p
+    for p in [
         os.getenv("BATCH_JSONL_A", "artifacts/demo_batch_results52.jsonl"),
         os.getenv("BATCH_JSONL_B", "artifacts/demo_batch_results41.jsonl"),
     ]
@@ -55,7 +58,9 @@ def _load_batch_summaries(path: str) -> tuple[str, dict[str, dict]]:
     return model_label, index
 
 
-def _load_results(paths: list[str]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _load_results(
+    paths: list[str],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     event_rows: list[dict[str, Any]] = []
     finding_rows: list[dict[str, Any]] = []
     for path in paths:
@@ -88,7 +93,9 @@ def _load_results(paths: list[str]) -> tuple[list[dict[str, Any]], list[dict[str
     return event_rows, finding_rows
 
 
-def _load_with_cache(paths: list[str]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _load_with_cache(
+    paths: list[str],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     if not USE_CACHE:
         return _load_results(paths)
     os.makedirs(os.path.dirname(CACHE_PATH), exist_ok=True)
@@ -117,7 +124,15 @@ def _build_scatter(rows: list[dict[str, Any]]):
         y="priority",
         size=[max(0.1, r.get("severity") or 0) for r in rows],
         color="eventCode",
-        hover_data=["eventCode", "priority", "severity", "start_record", "end_record", "event_length", "file"],
+        hover_data=[
+            "eventCode",
+            "priority",
+            "severity",
+            "start_record",
+            "end_record",
+            "event_length",
+            "file",
+        ],
         title="Events by Priority (ordered)",
     )
     fig.update_layout(xaxis_title="Rank (sorted)", yaxis_title="Priority")
@@ -130,13 +145,19 @@ def main() -> None:
     rows, findings = _load_with_cache(paths)
     if MAX_ROWS > 0 and len(rows) > MAX_ROWS:
         rows = sorted(rows, key=lambda r: r.get("priority", 0), reverse=True)[:MAX_ROWS]
-        print(f"Loaded top {MAX_ROWS} rows by priority (set COMPARE_DASH_MAX_ROWS=0 to disable).")
+        print(
+            f"Loaded top {MAX_ROWS} rows by priority (set COMPARE_DASH_MAX_ROWS=0 to disable)."
+        )
 
-    batch_sources: list[tuple[str, dict]] = [_load_batch_summaries(p) for p in BATCH_JSONL_PATHS]
+    batch_sources: list[tuple[str, dict]] = [
+        _load_batch_summaries(p) for p in BATCH_JSONL_PATHS
+    ]
 
     app: Dash = dash.Dash(__name__)
     files = sorted({r["file"] for r in rows})
-    event_codes = sorted({str(r["eventCode"]) for r in rows if r.get("eventCode") is not None})
+    event_codes = sorted(
+        {str(r["eventCode"]) for r in rows if r.get("eventCode") is not None}
+    )
     metric_keys = sorted(
         {
             a.get("metric")
@@ -178,7 +199,11 @@ def main() -> None:
                                 id="apptype-select",
                             ),
                         ],
-                        style={"width": "24%", "display": "inline-block", "marginLeft": "1%"},
+                        style={
+                            "width": "24%",
+                            "display": "inline-block",
+                            "marginLeft": "1%",
+                        },
                     ),
                     html.Div(
                         [
@@ -190,7 +215,11 @@ def main() -> None:
                                 placeholder="All",
                             ),
                         ],
-                        style={"width": "24%", "display": "inline-block", "marginLeft": "1%"},
+                        style={
+                            "width": "24%",
+                            "display": "inline-block",
+                            "marginLeft": "1%",
+                        },
                     ),
                     html.Div(
                         [
@@ -202,7 +231,11 @@ def main() -> None:
                                 placeholder="All",
                             ),
                         ],
-                        style={"width": "24%", "display": "inline-block", "marginLeft": "1%"},
+                        style={
+                            "width": "24%",
+                            "display": "inline-block",
+                            "marginLeft": "1%",
+                        },
                     ),
                     html.Div(
                         [
@@ -214,7 +247,11 @@ def main() -> None:
                                 style={"width": "100%"},
                             ),
                         ],
-                        style={"width": "24%", "display": "inline-block", "marginTop": "8px"},
+                        style={
+                            "width": "24%",
+                            "display": "inline-block",
+                            "marginTop": "8px",
+                        },
                     ),
                     html.Div(
                         [
@@ -236,7 +273,12 @@ def main() -> None:
                                 ]
                             ),
                         ],
-                        style={"width": "24%", "display": "inline-block", "marginLeft": "1%", "marginTop": "8px"},
+                        style={
+                            "width": "24%",
+                            "display": "inline-block",
+                            "marginLeft": "1%",
+                            "marginTop": "8px",
+                        },
                     ),
                 ]
             ),
@@ -257,7 +299,16 @@ def main() -> None:
                 row_selectable="single",
             ),
             html.H4("Finding Detail"),
-            html.Div(id="finding-detail", style={"whiteSpace": "pre-wrap", "fontFamily": "monospace", "padding": "8px", "background": "#f5f5f5", "borderRadius": "4px"}),
+            html.Div(
+                id="finding-detail",
+                style={
+                    "whiteSpace": "pre-wrap",
+                    "fontFamily": "monospace",
+                    "padding": "8px",
+                    "background": "#f5f5f5",
+                    "borderRadius": "4px",
+                },
+            ),
             html.H4("Metric Summary (filtered events)"),
             dash_table.DataTable(
                 id="summary-table",
@@ -322,15 +373,27 @@ def main() -> None:
         Input("record-min-input", "value"),
         Input("record-max-input", "value"),
     )
-    def _filter_rows(file_value, app_type, event_code, metric_value, start_record, record_min, record_max):
+    def _filter_rows(
+        file_value,
+        app_type,
+        event_code,
+        metric_value,
+        start_record,
+        record_min,
+        record_max,
+    ):
         filtered = rows
         filtered_findings = findings
         if file_value and file_value != "__ALL__":
             filtered = [r for r in filtered if r["file"] == file_value]
-            filtered_findings = [f for f in filtered_findings if f.get("file") == file_value]
+            filtered_findings = [
+                f for f in filtered_findings if f.get("file") == file_value
+            ]
         if app_type and app_type != "__ALL__":
             # Filter findings by app type
-            filtered_findings = [f for f in filtered_findings if f.get("application_type") == app_type]
+            filtered_findings = [
+                f for f in filtered_findings if f.get("application_type") == app_type
+            ]
             # Filter events to those whose anomalies include metrics from this app type
             app_metrics = set()
             for f in filtered_findings:
@@ -338,8 +401,12 @@ def main() -> None:
                     app_metrics.add(ms.get("metric_key", ""))
             if app_metrics:
                 filtered = [
-                    r for r in filtered
-                    if any(a.get("metric") in app_metrics for a in (r.get("anomalies") or []))
+                    r
+                    for r in filtered
+                    if any(
+                        a.get("metric") in app_metrics
+                        for a in (r.get("anomalies") or [])
+                    )
                 ]
         if event_code:
             filtered = [r for r in filtered if str(r["eventCode"]) == str(event_code)]
@@ -347,19 +414,27 @@ def main() -> None:
             filtered = [
                 r
                 for r in filtered
-                if any(a.get("metric") == metric_value for a in (r.get("anomalies") or []))
+                if any(
+                    a.get("metric") == metric_value for a in (r.get("anomalies") or [])
+                )
             ]
             filtered_findings = [
-                f for f in filtered_findings
-                if any(ms.get("metric_key") == metric_value for ms in f.get("metric_summaries", []))
+                f
+                for f in filtered_findings
+                if any(
+                    ms.get("metric_key") == metric_value
+                    for ms in f.get("metric_summaries", [])
+                )
             ]
         if start_record:
             sr = int(start_record)
+
             def _in_range(r):
                 end = r.get("end_record")
                 if end is None:
                     return r["start_record"] == sr
                 return r["start_record"] <= sr <= int(end)
+
             filtered = [r for r in filtered if _in_range(r)]
         if record_min is not None:
             filtered = [r for r in filtered if r["start_record"] >= int(record_min)]
@@ -375,7 +450,9 @@ def main() -> None:
             code = row.get("eventCode")
             for anomaly in row.get("anomalies") or []:
                 metric = anomaly.get("metric") or "unknown"
-                entry = summary_map.setdefault(metric, {"metric": metric, "codes": set(), "count": 0})
+                entry = summary_map.setdefault(
+                    metric, {"metric": metric, "codes": set(), "count": 0}
+                )
                 if code is not None:
                     entry["codes"].add(str(code))
                 entry["count"] += 1
@@ -448,7 +525,7 @@ def main() -> None:
         # JSONL keys are "<stem>.2020" — strip the prefix/suffix to match
         stem = file_value
         if stem.startswith("compare_"):
-            stem = stem[len("compare_"):]
+            stem = stem[len("compare_") :]
         if stem.endswith(".json"):
             stem = stem[: -len(".json")]
         jsonl_key = stem + ".2020"
@@ -466,24 +543,31 @@ def main() -> None:
                 meta_parts.append(f"Confidence: {confidence:.2f}")
             meta = "  |  ".join(meta_parts)
 
-            panels.append(html.Div(
-                [
-                    html.Strong(model_label),
-                    html.Div(
-                        meta,
-                        style={"fontSize": "0.85em", "color": "#666", "marginBottom": "6px", "marginTop": "2px"},
-                    ),
-                    html.Div(summary, style={"whiteSpace": "pre-wrap"}),
-                ],
-                style={
-                    "flex": "1",
-                    "padding": "12px",
-                    "background": "#f5f5f5",
-                    "borderRadius": "4px",
-                    "fontFamily": "sans-serif",
-                    "minWidth": "0",
-                },
-            ))
+            panels.append(
+                html.Div(
+                    [
+                        html.Strong(model_label),
+                        html.Div(
+                            meta,
+                            style={
+                                "fontSize": "0.85em",
+                                "color": "#666",
+                                "marginBottom": "6px",
+                                "marginTop": "2px",
+                            },
+                        ),
+                        html.Div(summary, style={"whiteSpace": "pre-wrap"}),
+                    ],
+                    style={
+                        "flex": "1",
+                        "padding": "12px",
+                        "background": "#f5f5f5",
+                        "borderRadius": "4px",
+                        "fontFamily": "sans-serif",
+                        "minWidth": "0",
+                    },
+                )
+            )
 
         return {"display": "block", "marginTop": "24px"}, panels
 
